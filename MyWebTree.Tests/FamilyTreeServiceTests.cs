@@ -36,6 +36,10 @@ public class FamilyTreeServiceTests
         Assert.Contains(jonah.Id, again.Children);
         Assert.Contains(again.Id, jonah.Parents);
         Assert.Equal(again.Id, saved.Value.FocusPersonId);
+        Assert.Equal(new PartialDate(1953), again.BirthDate);
+        var arthur = saved.Value.People.Single(person => person.FirstName == "Arthur");
+        Assert.Equal(new PartialDate(1924), arthur.BirthDate);
+        Assert.Equal(new PartialDate(2001), arthur.DeathDate);
 
         var deleted = await database.Trees.DeleteAsync(created.Value.Id, TestContext.Current.CancellationToken);
         Assert.True(deleted.IsSuccess);

@@ -71,6 +71,24 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     [Parameter]
     public string? Error { get; set; }
 
+    /// <summary>Drawn with a second outline, for example the person who belongs to the signed-in user.</summary>
+    [Parameter]
+    public string? HighlightedPersonId { get; set; }
+
+    /// <summary>Host navigation. The button is hidden when nothing is listening.</summary>
+    [Parameter]
+    public EventCallback<PersonData> OnOpenPerson { get; set; }
+
+    [Parameter]
+    public string OpenPersonText { get; set; } = "Open";
+
+    /// <summary>
+    /// When set, the editor shows "Choose picture" and stores whatever address the host returns.
+    /// Return null to leave the current address alone.
+    /// </summary>
+    [Parameter]
+    public Func<AvatarRequest, Task<string?>>? ChooseAvatar { get; set; }
+
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
@@ -79,9 +97,14 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private List<PersonData> Matches => string.IsNullOrWhiteSpace(query)
         ? []
         : People.Where(person =>
-            person.DisplayName.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase)
-            || (person.BirthPlace?.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase) ?? false)
-            || person.Lifespan.Contains(query.Trim()))
+        {
+            string term = query.Trim();
+            return
+            person.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || (person.BirthPlace?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (person.DeathPlace?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+            || person.Lifespan.Contains(term);
+        })
             .Take(8)
             .ToList();
 
@@ -269,8 +292,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         string focus = card.Id == layout.FocusId ? " mwt-focus" : "";
         string selected = card.Id == selectedId ? " mwt-selected" : "";
+        string marked = !card.IsPlaceholder && card.Id == HighlightedPersonId ? " mwt-marked" : "";
         string placeholder = card.IsPlaceholder ? " mwt-placeholder" : "";
-        return "mwt-card " + tone + focus + selected + placeholder;
+        return "mwt-card " + tone + focus + selected + marked + placeholder;
     }
 
     private static string CardTitle(TreeCard card, PersonData? person) =>
@@ -297,7 +321,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private static string Px(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 
-    private static string DateValue(DateOnly? date) => date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
+    private static string Part(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "";
 
     private void SelectCard(TreeCard card)
     {
@@ -401,7 +425,12 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        var model = editor.ToModel();
+        if (!editor.TryToModel(out var model, out string? dateError))
+        {
+            formError = dateError;
+            return;
+        }
+
         Result<IReadOnlyList<PersonData>> result;
         if (editor.PersonId is not null)
         {
@@ -433,9 +462,11 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
+        string? changedId = editor.PersonId ?? selectedId;
+        var kind = editor.PersonId is null ? FamilyTreeChangeKind.Added : FamilyTreeChangeKind.Updated;
         editor = null;
         formError = null;
-        await PublishAsync(result.Value, FocusPersonId);
+        await PublishAsync(result.Value, FocusPersonId, kind, changedId);
     }
 
     private async Task DeleteAsync()
@@ -455,11 +486,47 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         string? focus = FocusPersonId == person.Id ? result.Value.FirstOrDefault()?.Id : FocusPersonId;
         selectedId = focus;
         confirmDelete = false;
-        await PublishAsync(result.Value, focus);
+        await PublishAsync(result.Value, focus, FamilyTreeChangeKind.Removed, person.Id);
+    }
+
+    private async Task UnlinkAsync(string personId, string otherId)
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        var result = FamilyGraphEditor.Unlink(People, personId, otherId);
+        if (!result.IsSuccess)
+        {
+            formError = result.GetDisplayMessage();
+            return;
+        }
+
+        formError = null;
+        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Unlinked, personId, otherId);
+    }
+
+    private Task OpenSelectedAsync(PersonData person) => OnOpenPerson.InvokeAsync(person);
+
+    private async Task ChooseAvatarAsync()
+    {
+        if (editor is null || ChooseAvatar is null)
+        {
+            return;
+        }
+
+        string? url = await ChooseAvatar(new AvatarRequest(editor.PersonId, editor.AvatarUrl));
+        if (url is not null)
+        {
+            editor.AvatarUrl = url;
+        }
     }
 
     private Task FocusAsync(string personId) =>
-        personId == FocusPersonId ? Task.CompletedTask : PublishAsync(People, personId);
+        personId == FocusPersonId
+            ? Task.CompletedTask
+            : PublishAsync(People, personId, FamilyTreeChangeKind.FocusChanged, personId);
 
     private Task JumpToAsync(PersonData person)
     {
@@ -509,7 +576,12 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
     }
 
-    private async Task PublishAsync(IReadOnlyList<PersonData> next, string? focus)
+    private async Task PublishAsync(
+        IReadOnlyList<PersonData> next,
+        string? focus,
+        FamilyTreeChangeKind kind = FamilyTreeChangeKind.Snapshot,
+        string? personId = null,
+        string? otherPersonId = null)
     {
         if (!applyingHistory)
         {
@@ -525,7 +597,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         saving = true;
         try
         {
-            await Changed.InvokeAsync(new FamilyTreeChange(next, focus));
+            await Changed.InvokeAsync(new FamilyTreeChange(next, focus, kind, personId, otherPersonId));
         }
         finally
         {
@@ -565,28 +637,84 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         userAdjusted = false;
     }
 
-    private void SetBirth(ChangeEventArgs e) 
+    private void SetBirthYear(ChangeEventArgs e) => SetYear(true, e);
+
+    private void SetBirthMonth(ChangeEventArgs e) => SetMonth(true, e);
+
+    private void SetBirthDay(ChangeEventArgs e) => SetDay(true, e);
+
+    private void SetDeathYear(ChangeEventArgs e) => SetYear(false, e);
+
+    private void SetDeathMonth(ChangeEventArgs e) => SetMonth(false, e);
+
+    private void SetDeathDay(ChangeEventArgs e) => SetDay(false, e);
+
+    private void SetYear(bool birth, ChangeEventArgs e)
     {
-        if (editor is not null)
+        if (editor is null)
         {
-            editor.BirthDate = ParseDate(e);
+            return;
+        }
+
+        int? year = ParsePart(e);
+        if (birth)
+        {
+            editor.BirthYear = year;
+            if (year is null)
+            {
+                editor.BirthMonth = null;
+                editor.BirthDay = null;
+            }
+        }
+        else
+        {
+            editor.DeathYear = year;
+            if (year is null)
+            {
+                editor.DeathMonth = null;
+                editor.DeathDay = null;
+            }
         }
     }
 
-    private void SetDeath(ChangeEventArgs e)
+    private void SetMonth(bool birth, ChangeEventArgs e)
     {
-        if (editor is not null)
+        if (editor is null)
         {
-            editor.DeathDate = ParseDate(e);
+            return;
+        }
+
+        if (birth)
+        {
+            editor.BirthMonth = ParsePart(e);
+        }
+        else
+        {
+            editor.DeathMonth = ParsePart(e);
         }
     }
 
-    private static DateOnly? ParseDate(ChangeEventArgs e)
+    private void SetDay(bool birth, ChangeEventArgs e)
+    {
+        if (editor is null)
+        {
+            return;
+        }
+
+        if (birth)
+        {
+            editor.BirthDay = ParsePart(e);
+        }
+        else
+        {
+            editor.DeathDay = ParsePart(e);
+        }
+    }
+
+    private static int? ParsePart(ChangeEventArgs e)
     {
         string? text = e.Value?.ToString();
-        return DateOnly.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
-            ? date
-            : null;
+        return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value) ? value : null;
     }
 
     private void PanStart(PointerEventArgs e)
@@ -703,27 +831,49 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         public Gender Gender { get; set; }
 
-        public DateOnly? BirthDate { get; set; }
+        public int? BirthYear { get; set; }
 
-        public DateOnly? DeathDate { get; set; }
+        public int? BirthMonth { get; set; }
+
+        public int? BirthDay { get; set; }
+
+        public int? DeathYear { get; set; }
+
+        public int? DeathMonth { get; set; }
+
+        public int? DeathDay { get; set; }
 
         public string? BirthPlace { get; set; }
+
+        public string? DeathPlace { get; set; }
 
         public string? AvatarUrl { get; set; }
 
         public string? Notes { get; set; }
 
-        public PersonWriteModel ToModel() => new()
+        public bool TryToModel(out PersonWriteModel model, out string? error)
         {
-            Gender = Gender,
-            FirstName = FirstName,
-            LastName = LastName,
-            BirthDate = BirthDate,
-            DeathDate = DeathDate,
-            BirthPlace = BirthPlace,
-            AvatarUrl = AvatarUrl,
-            Notes = Notes,
-        };
+            if (!TryDate(BirthYear, BirthMonth, BirthDay, "Birth", out var birth, out error)
+                || !TryDate(DeathYear, DeathMonth, DeathDay, "Death", out var death, out error))
+            {
+                model = new PersonWriteModel();
+                return false;
+            }
+
+            model = new PersonWriteModel
+            {
+                Gender = Gender,
+                FirstName = FirstName,
+                LastName = LastName,
+                BirthDate = birth,
+                DeathDate = death,
+                BirthPlace = BirthPlace,
+                DeathPlace = DeathPlace,
+                AvatarUrl = AvatarUrl,
+                Notes = Notes,
+            };
+            return true;
+        }
 
         public static EditorState From(PersonData person) => new()
         {
@@ -731,11 +881,41 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             FirstName = person.FirstName,
             LastName = person.LastName,
             Gender = person.Gender,
-            BirthDate = person.BirthDate,
-            DeathDate = person.DeathDate,
+            BirthYear = person.BirthDate?.Year,
+            BirthMonth = person.BirthDate?.Month,
+            BirthDay = person.BirthDate?.Day,
+            DeathYear = person.DeathDate?.Year,
+            DeathMonth = person.DeathDate?.Month,
+            DeathDay = person.DeathDate?.Day,
             BirthPlace = person.BirthPlace,
+            DeathPlace = person.DeathPlace,
             AvatarUrl = person.AvatarUrl,
             Notes = person.Notes,
         };
+
+        private static bool TryDate(int? year, int? month, int? day, string label, out PartialDate? date, out string? error)
+        {
+            date = null;
+            error = null;
+            if (year is null && month is null && day is null)
+            {
+                return true;
+            }
+
+            if (year is null)
+            {
+                error = label + " needs a year.";
+                return false;
+            }
+
+            if (!PartialDate.TryCreate(year.Value, month, day, out var parsed))
+            {
+                error = label + " is not a real date.";
+                return false;
+            }
+
+            date = parsed;
+            return true;
+        }
     }
 }

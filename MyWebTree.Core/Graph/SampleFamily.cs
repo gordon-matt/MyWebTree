@@ -80,8 +80,8 @@ public static class SampleFamily
             Gender = gender,
             FirstName = first,
             LastName = last,
-            BirthDate = birth is null ? null : new DateOnly(birth.Value, 6, 1),
-            DeathDate = death is null ? null : new DateOnly(death.Value, 6, 1),
+            BirthDate = birth is null ? null : new PartialDate(birth.Value),
+            DeathDate = death is null ? null : new PartialDate(death.Value),
             BirthPlace = place,
         };
     }

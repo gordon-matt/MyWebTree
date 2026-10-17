@@ -101,6 +101,7 @@ public static class FamilyGraphEditor
             BirthDate = value.BirthDate,
             DeathDate = value.DeathDate,
             BirthPlace = value.BirthPlace,
+            DeathPlace = value.DeathPlace,
             AvatarUrl = value.AvatarUrl,
             Notes = value.Notes,
         };
@@ -118,6 +119,35 @@ public static class FamilyGraphEditor
 
         FamilyLinks.Unlink(map, personId);
         return Result<IReadOnlyList<PersonData>>.Success(List(map));
+    }
+
+    /// <summary>Drops one spouse or parent link and leaves both people in the tree.</summary>
+    public static Result<IReadOnlyList<PersonData>> Unlink(IReadOnlyList<PersonData> people, string personId, string otherId)
+    {
+        var map = Index(people);
+        if (!map.TryGetValue(personId, out var person) || !map.ContainsKey(otherId))
+        {
+            return Result<IReadOnlyList<PersonData>>.NotFound("That person is no longer in the tree.");
+        }
+
+        if (person.Spouses.Contains(otherId))
+        {
+            FamilyLinks.Unspouse(map, personId, otherId);
+        }
+        else if (person.Parents.Contains(otherId))
+        {
+            FamilyLinks.Unparent(map, otherId, personId);
+        }
+        else if (person.Children.Contains(otherId))
+        {
+            FamilyLinks.Unparent(map, personId, otherId);
+        }
+        else
+        {
+            return Result<IReadOnlyList<PersonData>>.NotFound("Those two are not linked.");
+        }
+
+        return Validate(List(map));
     }
 
     public static Result<IReadOnlyList<PersonData>> Validate(IReadOnlyList<PersonData> people)
@@ -166,7 +196,7 @@ public static class FamilyGraphEditor
                 return Invalid("That would make " + person.DisplayName + " their own ancestor.");
             }
 
-            if (person.BirthDate is not null && person.DeathDate is not null && person.DeathDate < person.BirthDate)
+            if (person.BirthDate is PartialDate born && person.DeathDate is PartialDate died && died.IsBefore(born))
             {
                 return Invalid(person.DisplayName + "'s death is dated before their birth.");
             }
@@ -259,20 +289,28 @@ public static class FamilyGraphEditor
 
         if (first.Length > Constants.MaxLengths.PersonName || last.Length > Constants.MaxLengths.PersonName)
         {
-            return Result<PersonWriteModel>.Invalid(new ValidationError(nameof(model.FirstName), "Names can be at most 100 characters."));
+            return Result<PersonWriteModel>.Invalid(new ValidationError(
+                nameof(model.FirstName),
+                $"Names can be at most {Constants.MaxLengths.PersonName} characters."));
         }
 
-        if (model.BirthDate is not null && model.DeathDate is not null && model.DeathDate < model.BirthDate)
+        if (model.BirthDate is PartialDate born && model.DeathDate is PartialDate died && died.IsBefore(born))
         {
             return Result<PersonWriteModel>.Invalid(new ValidationError(nameof(model.DeathDate), "Death can't be dated before birth."));
         }
 
         string? place = NullIfBlank(model.BirthPlace);
+        string? deathPlace = NullIfBlank(model.DeathPlace);
         string? avatar = NullIfBlank(model.AvatarUrl);
         string? notes = NullIfBlank(model.Notes);
-        if (place is { Length: > Constants.MaxLengths.BirthPlace })
+        if (place is { Length: > Constants.MaxLengths.Place })
         {
             return Result<PersonWriteModel>.Invalid(new ValidationError(nameof(model.BirthPlace), "Birth place is too long."));
+        }
+
+        if (deathPlace is { Length: > Constants.MaxLengths.Place })
+        {
+            return Result<PersonWriteModel>.Invalid(new ValidationError(nameof(model.DeathPlace), "Death place is too long."));
         }
 
         if (avatar is { Length: > Constants.MaxLengths.AvatarUrl })
@@ -291,6 +329,7 @@ public static class FamilyGraphEditor
             FirstName = first,
             LastName = last,
             BirthPlace = place,
+            DeathPlace = deathPlace,
             AvatarUrl = avatar,
             Notes = notes,
         });
@@ -305,6 +344,7 @@ public static class FamilyGraphEditor
         BirthDate = model.BirthDate,
         DeathDate = model.DeathDate,
         BirthPlace = model.BirthPlace,
+        DeathPlace = model.DeathPlace,
         AvatarUrl = model.AvatarUrl,
         Notes = model.Notes,
     };

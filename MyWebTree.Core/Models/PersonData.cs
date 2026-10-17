@@ -14,11 +14,13 @@ public sealed record PersonData
 
     public string LastName { get; init; } = string.Empty;
 
-    public DateOnly? BirthDate { get; init; }
+    public PartialDate? BirthDate { get; init; }
 
-    public DateOnly? DeathDate { get; init; }
+    public PartialDate? DeathDate { get; init; }
 
     public string? BirthPlace { get; init; }
+
+    public string? DeathPlace { get; init; }
 
     public string? AvatarUrl { get; init; }
 

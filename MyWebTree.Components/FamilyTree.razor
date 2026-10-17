@@ -36,8 +36,8 @@
                     <p class="mwt-kicker">@EditorTitle</p>
                     <div class="mwt-form">
                         <div class="mwt-form-row">
-                            <label>First name <input @bind="editor.FirstName" maxlength="100" /></label>
-                            <label>Last name <input @bind="editor.LastName" maxlength="100" /></label>
+                            <label>First name <input @bind="editor.FirstName" maxlength="@Constants.MaxLengths.PersonName" /></label>
+                            <label>Last name <input @bind="editor.LastName" maxlength="@Constants.MaxLengths.PersonName" /></label>
                         </div>
                         @if (GenderLocked)
                         {
@@ -67,13 +67,24 @@
                                 </select>
                             </label>
                         }
-                        <div class="mwt-form-row">
-                            <label>Born <input type="date" value="@DateValue(editor.BirthDate)" @onchange="SetBirth" /></label>
-                            <label>Died <input type="date" value="@DateValue(editor.DeathDate)" @onchange="SetDeath" /></label>
+                        <div class="mwt-date-row">
+                            <label>Born year <input type="number" min="1" max="9999" placeholder="Year" value="@Part(editor.BirthYear)" @onchange="SetBirthYear" /></label>
+                            <label>Month <input type="number" min="1" max="12" placeholder="Month" value="@Part(editor.BirthMonth)" @onchange="SetBirthMonth" /></label>
+                            <label>Day <input type="number" min="1" max="31" placeholder="Day" value="@Part(editor.BirthDay)" @onchange="SetBirthDay" /></label>
                         </div>
-                        <label>Birth place <input @bind="editor.BirthPlace" maxlength="200" /></label>
-                        <label>Picture address <input @bind="editor.AvatarUrl" maxlength="500" placeholder="https://" /></label>
-                        <label>Notes <textarea @bind="editor.Notes" maxlength="4000"></textarea></label>
+                        <div class="mwt-date-row">
+                            <label>Died year <input type="number" min="1" max="9999" placeholder="Year" value="@Part(editor.DeathYear)" @onchange="SetDeathYear" /></label>
+                            <label>Month <input type="number" min="1" max="12" placeholder="Month" value="@Part(editor.DeathMonth)" @onchange="SetDeathMonth" /></label>
+                            <label>Day <input type="number" min="1" max="31" placeholder="Day" value="@Part(editor.DeathDay)" @onchange="SetDeathDay" /></label>
+                        </div>
+                        <label>Birth place <input @bind="editor.BirthPlace" maxlength="@Constants.MaxLengths.Place" /></label>
+                        <label>Death place <input @bind="editor.DeathPlace" maxlength="@Constants.MaxLengths.Place" /></label>
+                        <label>Picture address <input @bind="editor.AvatarUrl" maxlength="@Constants.MaxLengths.AvatarUrl" placeholder="https://" /></label>
+                        @if (ChooseAvatar is not null)
+                        {
+                            <button type="button" class="mwt-button" @onclick="ChooseAvatarAsync">Choose picture</button>
+                        }
+                        <label>Notes <textarea @bind="editor.Notes" maxlength="@Constants.MaxLengths.Notes"></textarea></label>
                         <div class="mwt-form-actions">
                             <button type="button" class="mwt-button mwt-primary" disabled="@saving" @onclick="SaveEditorAsync">Save</button>
                             <button type="button" class="mwt-button" @onclick="CloseEditor">Cancel</button>
@@ -84,17 +95,43 @@
                 {
                     <p class="mwt-kicker">@(Kinship(person.Id) is { Length: > 0 } kin ? kin : "Selected")</p>
                     <h2>@person.DisplayName</h2>
-                    @if (!string.IsNullOrEmpty(person.Lifespan) || !string.IsNullOrEmpty(person.BirthPlace))
+                    @if (person.BirthDate is not null || !string.IsNullOrEmpty(person.BirthPlace))
                     {
-                        <p class="mwt-meta">@person.Lifespan @(string.IsNullOrEmpty(person.BirthPlace) ? "" : "· " + person.BirthPlace)</p>
+                        <p class="mwt-meta">Born @person.BirthDate@(string.IsNullOrEmpty(person.BirthPlace) ? "" : " · " + person.BirthPlace)</p>
+                    }
+                    @if (person.DeathDate is not null || !string.IsNullOrEmpty(person.DeathPlace))
+                    {
+                        <p class="mwt-meta">Died @person.DeathDate@(string.IsNullOrEmpty(person.DeathPlace) ? "" : " · " + person.DeathPlace)</p>
                     }
                     @if (!string.IsNullOrWhiteSpace(person.Notes))
                     {
                         <p class="mwt-notes">@person.Notes</p>
                     }
 
+                    @if (OnOpenPerson.HasDelegate)
+                    {
+                        <div class="mwt-actions">
+                            <button type="button" class="mwt-button" @onclick="() => OpenSelectedAsync(person)">@OpenPersonText</button>
+                        </div>
+                    }
                     @if (Editable)
                     {
+                        <div class="mwt-rel-list">
+                            @foreach (var spouseId in person.Spouses)
+                            {
+                                <div class="mwt-rel">
+                                    <span>Spouse · @Person(spouseId)?.DisplayName</span>
+                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, spouseId)">Unlink</button>
+                                </div>
+                            }
+                            @foreach (var parentId in person.Parents)
+                            {
+                                <div class="mwt-rel">
+                                    <span>Parent · @Person(parentId)?.DisplayName</span>
+                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, parentId)">Unlink</button>
+                                </div>
+                            }
+                        </div>
                         <div class="mwt-add-row">
                             <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Father))" @onclick="() => OpenAdd(PlaceholderKind.Father, person.Id)">Father</button>
                             <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Mother))" @onclick="() => OpenAdd(PlaceholderKind.Mother, person.Id)">Mother</button>

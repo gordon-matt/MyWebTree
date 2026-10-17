@@ -19,8 +19,9 @@ public static class Constants
     {
         public const int TreeName = 120;
         public const int Description = 500;
-        public const int PersonName = 100;
-        public const int BirthPlace = 200;
+        public const int PersonName = 200;
+        public const int Place = 200;
+        public const int BirthPlace = Place;
         public const int AvatarUrl = 500;
         public const int Notes = 4000;
     }

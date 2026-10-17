@@ -316,6 +316,7 @@ public sealed class FamilyTreeService(
             BirthDate = person.BirthDate,
             DeathDate = person.DeathDate,
             BirthPlace = person.BirthPlace,
+            DeathPlace = person.DeathPlace,
             AvatarUrl = person.AvatarUrl,
             Notes = person.Notes,
             Parents = parents[person.Id],
@@ -348,6 +349,7 @@ public sealed class FamilyTreeService(
         entity.BirthDate = person.BirthDate;
         entity.DeathDate = person.DeathDate;
         entity.BirthPlace = person.BirthPlace;
+        entity.DeathPlace = person.DeathPlace;
         entity.AvatarUrl = person.AvatarUrl;
         entity.Notes = person.Notes;
     }

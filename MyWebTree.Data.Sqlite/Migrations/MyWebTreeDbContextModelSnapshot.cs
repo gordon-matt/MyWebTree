@@ -63,7 +63,9 @@ namespace MyWebTree.Data.Sqlite.Migrations
                         .IsUnicode(false)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateOnly?>("BirthDate")
+                    b.Property<string>("BirthDate")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("BirthPlace")
@@ -71,12 +73,19 @@ namespace MyWebTree.Data.Sqlite.Migrations
                         .IsUnicode(true)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateOnly?>("DeathDate")
+                    b.Property<string>("DeathDate")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeathPlace")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(100)
+                        .HasMaxLength(200)
                         .IsUnicode(true)
                         .HasColumnType("TEXT");
 
@@ -85,7 +94,7 @@ namespace MyWebTree.Data.Sqlite.Migrations
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasMaxLength(100)
+                        .HasMaxLength(200)
                         .IsUnicode(true)
                         .HasColumnType("TEXT");
 

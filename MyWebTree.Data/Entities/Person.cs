@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MyWebTree.Models;
 
 namespace MyWebTree.Data.Entities;
 
@@ -13,11 +14,13 @@ public class Person : BaseEntity<int>
 
     public string LastName { get; set; } = string.Empty;
 
-    public DateOnly? BirthDate { get; set; }
+    public PartialDate? BirthDate { get; set; }
 
-    public DateOnly? DeathDate { get; set; }
+    public PartialDate? DeathDate { get; set; }
 
     public string? BirthPlace { get; set; }
+
+    public string? DeathPlace { get; set; }
 
     public string? AvatarUrl { get; set; }
 
@@ -35,7 +38,10 @@ public class PersonMap : IEntityTypeConfiguration<Person>
         builder.Property(m => m.Gender).HasConversion<int>();
         builder.Property(m => m.FirstName).IsRequired().HasMaxLength(Constants.MaxLengths.PersonName).IsUnicode(true);
         builder.Property(m => m.LastName).IsRequired().HasMaxLength(Constants.MaxLengths.PersonName).IsUnicode(true);
-        builder.Property(m => m.BirthPlace).HasMaxLength(Constants.MaxLengths.BirthPlace).IsUnicode(true);
+        builder.Property(m => m.BirthDate).HasConversion(PartialDateConverter.Instance).HasMaxLength(10).IsUnicode(false);
+        builder.Property(m => m.DeathDate).HasConversion(PartialDateConverter.Instance).HasMaxLength(10).IsUnicode(false);
+        builder.Property(m => m.BirthPlace).HasMaxLength(Constants.MaxLengths.Place).IsUnicode(true);
+        builder.Property(m => m.DeathPlace).HasMaxLength(Constants.MaxLengths.Place).IsUnicode(true);
         builder.Property(m => m.AvatarUrl).HasMaxLength(Constants.MaxLengths.AvatarUrl).IsUnicode(false);
         builder.Property(m => m.Notes).HasMaxLength(Constants.MaxLengths.Notes).IsUnicode(true);
 

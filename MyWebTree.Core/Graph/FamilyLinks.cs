@@ -34,6 +34,28 @@ internal static class FamilyLinks
             : person with { Parents = [.. person.Parents, id] });
     }
 
+    public static void Unspouse(Dictionary<string, PersonData> people, string a, string b)
+    {
+        if (!people.ContainsKey(a) || !people.ContainsKey(b))
+        {
+            return;
+        }
+
+        people[a] = people[a] with { Spouses = people[a].Spouses.Where(id => id != b).ToArray() };
+        people[b] = people[b] with { Spouses = people[b].Spouses.Where(id => id != a).ToArray() };
+    }
+
+    public static void Unparent(Dictionary<string, PersonData> people, string parentId, string childId)
+    {
+        if (!people.ContainsKey(parentId) || !people.ContainsKey(childId))
+        {
+            return;
+        }
+
+        people[parentId] = people[parentId] with { Children = people[parentId].Children.Where(id => id != childId).ToArray() };
+        people[childId] = people[childId] with { Parents = people[childId].Parents.Where(id => id != parentId).ToArray() };
+    }
+
     public static void Unlink(Dictionary<string, PersonData> people, string id)
     {
         foreach (string otherId in people.Keys.ToList())

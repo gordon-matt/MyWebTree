@@ -66,10 +66,40 @@ public class FamilyGraphEditorTests
             FirstName = "David",
             LastName = "Ward",
             Gender = Gender.Male,
-            BirthDate = new DateOnly(1953, 1, 1),
-            DeathDate = new DateOnly(1950, 1, 1),
+            BirthDate = new PartialDate(1953, 1, 1),
+            DeathDate = new PartialDate(1950, 1, 1),
         });
 
         Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Update_keeps_a_year_only_death_in_the_same_year_as_a_full_birth()
+    {
+        var result = FamilyGraphEditor.Update(SampleFamily.Create(), "david", new PersonWriteModel
+        {
+            FirstName = "David",
+            LastName = "Ward",
+            Gender = Gender.Male,
+            BirthDate = new PartialDate(1953, 6, 1),
+            DeathDate = new PartialDate(1953),
+        });
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Unlink_removes_a_spouse_and_leaves_both_people()
+    {
+        var people = SampleFamily.Create();
+        var unlinked = FamilyGraphEditor.Unlink(people, "david", "priya");
+
+        Assert.True(unlinked.IsSuccess);
+        var david = unlinked.Value.Single(person => person.Id == "david");
+        var priya = unlinked.Value.Single(person => person.Id == "priya");
+        Assert.DoesNotContain("priya", david.Spouses);
+        Assert.DoesNotContain("david", priya.Spouses);
+        Assert.Contains(unlinked.Value, person => person.Id == "david");
+        Assert.Contains(unlinked.Value, person => person.Id == "priya");
     }
 }
