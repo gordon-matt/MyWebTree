@@ -1,0 +1,230 @@
+<div class="mwt-root @Class" data-theme="@Theme" style="@RootStyle" @attributes="AdditionalAttributes">
+    <div class="mwt-shell">
+        <aside class="mwt-panel">
+            <div class="mwt-panel-head">
+                <Icon Name="people" />
+                <strong>Family</strong>
+                <span class="mwt-count">@People.Count</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Error) || !string.IsNullOrWhiteSpace(formError))
+            {
+                <div class="mwt-banner" role="alert">@(formError ?? Error)</div>
+            }
+
+            <label class="mwt-search">
+                <Icon Name="search" />
+                <input type="search" placeholder="Search the family" aria-label="Search the family" @bind="query" @bind:event="oninput" />
+            </label>
+
+            @if (Matches.Count > 0)
+            {
+                <div class="mwt-results">
+                    @foreach (var person in Matches)
+                    {
+                        <button type="button" class="mwt-result" @onclick="() => JumpToAsync(person)">
+                            <span>@person.DisplayName</span>
+                            <small>@person.Lifespan @person.BirthPlace</small>
+                        </button>
+                    }
+                </div>
+            }
+
+            <div class="mwt-detail">
+                @if (editor is not null)
+                {
+                    <p class="mwt-kicker">@EditorTitle</p>
+                    <div class="mwt-form">
+                        <div class="mwt-form-row">
+                            <label>First name <input @bind="editor.FirstName" maxlength="100" /></label>
+                            <label>Last name <input @bind="editor.LastName" maxlength="100" /></label>
+                        </div>
+                        @if (GenderLocked)
+                        {
+                            <p class="mwt-meta">@GenderWord(editor.Gender)</p>
+                        }
+                        else
+                        {
+                            <label>
+                                Gender
+                                <select @bind="editor.Gender">
+                                    <option value="@Gender.Unknown">Unknown</option>
+                                    <option value="@Gender.Male">Male</option>
+                                    <option value="@Gender.Female">Female</option>
+                                </select>
+                            </label>
+                        }
+                        @if (AskOtherParent)
+                        {
+                            <label>
+                                Other parent
+                                <select @bind="editor.OtherParentId">
+                                    <option value="">Just this parent</option>
+                                    @foreach (var spouse in OtherParents)
+                                    {
+                                        <option value="@spouse.Id">@spouse.DisplayName</option>
+                                    }
+                                </select>
+                            </label>
+                        }
+                        <div class="mwt-form-row">
+                            <label>Born <input type="date" value="@DateValue(editor.BirthDate)" @onchange="SetBirth" /></label>
+                            <label>Died <input type="date" value="@DateValue(editor.DeathDate)" @onchange="SetDeath" /></label>
+                        </div>
+                        <label>Birth place <input @bind="editor.BirthPlace" maxlength="200" /></label>
+                        <label>Picture address <input @bind="editor.AvatarUrl" maxlength="500" placeholder="https://" /></label>
+                        <label>Notes <textarea @bind="editor.Notes" maxlength="4000"></textarea></label>
+                        <div class="mwt-form-actions">
+                            <button type="button" class="mwt-button mwt-primary" disabled="@saving" @onclick="SaveEditorAsync">Save</button>
+                            <button type="button" class="mwt-button" @onclick="CloseEditor">Cancel</button>
+                        </div>
+                    </div>
+                }
+                else if (Selected is { } person)
+                {
+                    <p class="mwt-kicker">@(Kinship(person.Id) is { Length: > 0 } kin ? kin : "Selected")</p>
+                    <h2>@person.DisplayName</h2>
+                    @if (!string.IsNullOrEmpty(person.Lifespan) || !string.IsNullOrEmpty(person.BirthPlace))
+                    {
+                        <p class="mwt-meta">@person.Lifespan @(string.IsNullOrEmpty(person.BirthPlace) ? "" : "· " + person.BirthPlace)</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(person.Notes))
+                    {
+                        <p class="mwt-notes">@person.Notes</p>
+                    }
+
+                    @if (Editable)
+                    {
+                        <div class="mwt-add-row">
+                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Father))" @onclick="() => OpenAdd(PlaceholderKind.Father, person.Id)">Father</button>
+                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Mother))" @onclick="() => OpenAdd(PlaceholderKind.Mother, person.Id)">Mother</button>
+                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Spouse))" @onclick="() => OpenAdd(PlaceholderKind.Spouse, person.Id)">Spouse</button>
+                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Son))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Male)">Son</button>
+                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Daughter))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Female)">Daughter</button>
+                        </div>
+                        <div class="mwt-actions">
+                            <button type="button" class="mwt-button" @onclick="EditSelected">Edit</button>
+                            <button type="button" class="mwt-button" @onclick="() => FocusAsync(person.Id)">Center</button>
+                            <button type="button" class="mwt-button mwt-danger" @onclick="() => confirmDelete = true">Delete</button>
+                        </div>
+                        @if (confirmDelete)
+                        {
+                            <div class="mwt-confirm">
+                                <p>Remove @person.DisplayName from the tree? Their relatives stay.</p>
+                                <div class="mwt-form-actions">
+                                    <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="DeleteAsync">Delete</button>
+                                    <button type="button" class="mwt-button" @onclick="() => confirmDelete = false">Keep</button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="mwt-actions">
+                            <button type="button" class="mwt-button" @onclick="() => FocusAsync(person.Id)">Center</button>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="mwt-kicker">Tree</p>
+                    <h2>No one selected</h2>
+                    <p class="mwt-meta">Click a card to read about them. Double-click to make them the center of the tree.</p>
+                }
+            </div>
+        </aside>
+
+        <div class="mwt-stage">
+            <div class="mwt-toolbar" @onpointerdown:stopPropagation="true">
+                <button type="button" class="mwt-icon-button" title="Undo" disabled="@(undo.Count == 0 || saving)" @onclick="UndoAsync"><Icon Name="undo" /></button>
+                <button type="button" class="mwt-icon-button" title="Redo" disabled="@(redo.Count == 0 || saving)" @onclick="RedoAsync"><Icon Name="redo" /></button>
+                <span class="mwt-divider"></span>
+                <span class="mwt-stepper" title="Generations of ancestors">
+                    <button type="button" class="mwt-icon-button" aria-label="Fewer ancestors" @onclick="() => SetDepth(false, -1)"><Icon Name="minus" /></button>
+                    <strong>@ancestry</strong>
+                    <button type="button" class="mwt-icon-button" aria-label="More ancestors" @onclick="() => SetDepth(false, 1)"><Icon Name="plus" /></button>
+                </span>
+                <span class="mwt-stepper" title="Generations of descendants">
+                    <button type="button" class="mwt-icon-button" aria-label="Fewer descendants" @onclick="() => SetDepth(true, -1)"><Icon Name="minus" /></button>
+                    <strong>@progeny</strong>
+                    <button type="button" class="mwt-icon-button" aria-label="More descendants" @onclick="() => SetDepth(true, 1)"><Icon Name="plus" /></button>
+                </span>
+                <span class="mwt-divider"></span>
+                <button type="button" class="mwt-icon-button" title="@(siblings ? "Hide siblings" : "Show siblings")" aria-pressed="@siblings" @onclick="ToggleSiblings"><Icon Name="people" /></button>
+                <button type="button" class="mwt-button" title="Switch between vertical and horizontal" @onclick="ToggleOrientation">
+                    @(orientation == TreeOrientation.Vertical ? "Vertical" : "Horizontal")
+                </button>
+                <span class="mwt-divider"></span>
+                <button type="button" class="mwt-icon-button" title="Zoom out" @onclick="() => ZoomByAsync(1 / 1.15)"><Icon Name="minus" /></button>
+                <button type="button" class="mwt-icon-button" title="Zoom in" @onclick="() => ZoomByAsync(1.15)"><Icon Name="plus" /></button>
+                <button type="button" class="mwt-icon-button" title="Fit" @onclick="FitAsync"><Icon Name="fit" /></button>
+            </div>
+
+            <div class="mwt-viewport @(dragging ? "mwt-dragging" : null)" @ref="viewport"
+                 @onpointerdown="PanStart" @onpointermove="PanMove" @onpointerup="PanEnd" @onpointerleave="PanEnd"
+                 @onwheel="OnWheel" @onwheel:preventDefault="true">
+                @if (People.Count == 0)
+                {
+                    <div class="mwt-empty">
+                        <div class="mwt-empty-card">
+                            <Icon Name="people" />
+                            <h2>This tree is empty</h2>
+                            <p>Add the first person and the chart will grow around them.</p>
+                            @if (Editable)
+                            {
+                                <button type="button" class="mwt-button mwt-primary" @onclick="AddFirst">Add someone</button>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="mwt-world" style="@WorldStyle">
+                        <svg class="mwt-links" width="@Px(layout.Width)" height="@Px(layout.Height)">
+                            @foreach (var link in layout.Links)
+                            {
+                                <line x1="@Px(link.X1)" y1="@Px(link.Y1)" x2="@Px(link.X2)" y2="@Px(link.Y2)" class="@(link.Dashed ? "mwt-dashed" : null)" />
+                            }
+                        </svg>
+                        @foreach (var card in layout.Cards)
+                        {
+                            var person = Person(card.Id);
+                            <button type="button" class="@CardClass(card)" style="@Place(card)" title="@CardTitle(card, person)"
+                                    @onpointerdown:stopPropagation="true" @onclick="() => SelectCard(card)" @ondblclick="() => FocusCardAsync(card)" @ondblclick:stopPropagation="true">
+                                <span class="mwt-avatar">
+                                    @if (!string.IsNullOrWhiteSpace(person?.AvatarUrl))
+                                    {
+                                        <img src="@person.AvatarUrl" alt="" />
+                                    }
+                                    else if (card.IsPlaceholder)
+                                    {
+                                        <Icon Name="plus" />
+                                    }
+                                    else
+                                    {
+                                        @(person?.Initials ?? "?")
+                                    }
+                                </span>
+                                <span class="mwt-card-copy">
+                                    <span class="mwt-card-name">@(card.IsPlaceholder ? PlaceholderLabel(card.Placeholder) : person?.DisplayName)</span>
+                                    @if (!card.IsPlaceholder && !string.IsNullOrEmpty(person?.Lifespan))
+                                    {
+                                        <span class="mwt-card-years">@person.Lifespan</span>
+                                    }
+                                    @if (!card.IsPlaceholder && Kinship(card.Id) is { Length: > 0 } label)
+                                    {
+                                        <span class="mwt-card-kin">@label</span>
+                                    }
+                                </span>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+            @if (People.Count > 0)
+            {
+                <div class="mwt-zoom">@ZoomPercent%</div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,142 @@
+@page "/"
+@rendermode InteractiveServer
+@inject IFamilyTreeService Trees
+
+<div class="demo-toolbar">
+    <div>
+        <h1>@(detail?.Name ?? "Family tree")</h1>
+        <p class="demo-muted">Click a card for the person. Double-click, or use Center, to rebuild the tree around them.</p>
+    </div>
+    <div class="demo-controls">
+        @if (summaries.Count > 1)
+        {
+            <label>
+                Tree
+                <select value="@detail?.Id" @onchange="OnTreeChanged">
+                    @foreach (var summary in summaries)
+                    {
+                        <option value="@summary.Id">@summary.Name</option>
+                    }
+                </select>
+            </label>
+        }
+        <label>
+            Theme
+            <select @bind="theme">
+                <option value="auto">Auto</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+        </label>
+        <button type="button" @onclick="CreateEmptyAsync">New tree</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <p class="demo-error">@error</p>
+}
+
+@if (detail is null)
+{
+    <p class="demo-muted">Loading the family…</p>
+}
+else
+{
+    <FamilyTree People="detail.People"
+                FocusPersonId="@detail.FocusPersonId"
+                Theme="@theme"
+                Class="demo-tree"
+                Changed="OnChanged" />
+}
+
+@code {
+    private readonly List<FamilyTreeSummary> summaries = [];
+    private FamilyTreeDetail? detail;
+    private string theme = "auto";
+    private string? error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync(preferredId: null);
+
+    private async Task LoadAsync(int? preferredId)
+    {
+        var list = await Trees.ListAsync();
+        if (!list.IsSuccess)
+        {
+            error = list.GetDisplayMessage();
+            return;
+        }
+
+        summaries.Clear();
+        summaries.AddRange(list.Value);
+        if (summaries.Count == 0)
+        {
+            var sample = await Trees.CreateSampleAsync();
+            if (!sample.IsSuccess)
+            {
+                error = sample.GetDisplayMessage();
+                return;
+            }
+
+            detail = sample.Value;
+            summaries.Add(new FamilyTreeSummary(sample.Value.Id, sample.Value.Name, sample.Value.Description, sample.Value.People.Count, DateTime.UtcNow));
+            return;
+        }
+
+        int id = preferredId is int wanted && summaries.Any(tree => tree.Id == wanted)
+            ? wanted
+            : summaries[0].Id;
+        await OpenAsync(id);
+    }
+
+    private async Task OpenAsync(int treeId)
+    {
+        var got = await Trees.GetAsync(treeId);
+        if (!got.IsSuccess)
+        {
+            error = got.GetDisplayMessage();
+            return;
+        }
+
+        error = null;
+        detail = got.Value;
+    }
+
+    private async Task OnTreeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            await OpenAsync(id);
+        }
+    }
+
+    private async Task OnChanged(FamilyTreeChange change)
+    {
+        if (detail is null)
+        {
+            return;
+        }
+
+        var saved = await Trees.SaveAsync(detail.Id, change.People, change.FocusPersonId);
+        if (!saved.IsSuccess)
+        {
+            error = saved.GetDisplayMessage();
+            return;
+        }
+
+        error = null;
+        detail = saved.Value;
+    }
+
+    private async Task CreateEmptyAsync()
+    {
+        var created = await Trees.CreateAsync("New tree", null);
+        if (!created.IsSuccess)
+        {
+            error = created.GetDisplayMessage();
+            return;
+        }
+
+        await LoadAsync(created.Value.Id);
+    }
+}

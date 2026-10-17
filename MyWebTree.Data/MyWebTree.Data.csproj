@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Description>Provider-agnostic data model for MyWebTree. Tables live in the webtree schema.</Description>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Extenso.Data.Entity" Version="10.1.1" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\MyWebTree.Core\MyWebTree.Core.csproj" />
+	</ItemGroup>
+
+</Project>

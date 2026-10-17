@@ -1,0 +1,50 @@
+<svg class="mwt-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    @switch (Name)
+    {
+        case "plus":
+            <path d="M12 5v14M5 12h14" />
+            break;
+        case "minus":
+            <path d="M5 12h14" />
+            break;
+        case "fit":
+            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+            break;
+        case "search":
+            <circle cx="11" cy="11" r="6" />
+            <path d="m20 20-3.5-3.5" />
+            break;
+        case "trash":
+            <path d="M4 7h16M9 7V5h6v2M8 7l1 13h6l1-13" />
+            break;
+        case "close":
+            <path d="M6 6l12 12M18 6 6 18" />
+            break;
+        case "center":
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+            break;
+        case "undo":
+            <path d="M9 14 4 9l5-5" />
+            <path d="M4 9h9a7 7 0 1 1 0 14H9" />
+            break;
+        case "redo":
+            <path d="m15 14 5-5-5-5" />
+            <path d="M20 9h-9a7 7 0 1 0 0 14h4" />
+            break;
+        case "people":
+            <circle cx="9" cy="8" r="3" />
+            <path d="M3 19c.6-2.8 2.8-4 6-4s5.4 1.2 6 4" />
+            <circle cx="17" cy="9" r="2.2" />
+            <path d="M16 15.2c1.8.3 3.2 1.3 4 3.3" />
+            break;
+        default:
+            <circle cx="12" cy="12" r="8" />
+            break;
+    }
+</svg>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = "";
+}
