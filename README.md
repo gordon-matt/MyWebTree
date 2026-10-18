@@ -2,7 +2,7 @@ A Blazor family tree for .NET 10. Hand it a list of people and it draws the char
 
 Features in this version:
 
-- Pan, zoom, and fit, with ancestry and descendant depth, a sibling toggle, and a vertical or horizontal layout
+- Pan, zoom, and fit, with ancestry and descendant depth, a vertical or horizontal layout, and a sibling toggle that starts off
 - Kinship labels from the person the tree is centered on
 - Add a father, mother, spouse, son, or daughter, edit a person, or remove them without removing their relatives
 - Unlink a spouse or a parent and leave both people in the tree
@@ -72,7 +72,7 @@ The component must render interactively. `AddMyWebTreeSqlite()` with no connecti
 
 SQLite has no schemas. The provider ignores that warning and creates the same tables. The migrations history table is `__MyWebTreeMigrationsHistory`, so MyWebTree can share a database with the host.
 
-Parameters: `People`, `FocusPersonId`, `Changed`, `Editable` (default `true`), `Theme` (`light`, `dark`, `auto`, `bootstrap`), `Height` (default `720px`), `Class`, `Error`, `HighlightedPersonId`, `OnOpenPerson`, `OpenPersonText`, and `ChooseAvatar`. Other attributes are passed to the outer element.
+Parameters: `People`, `FocusPersonId`, `Changed`, `Editable` (default `true`), `Theme` (`light`, `dark`, `auto`, `bootstrap`), `Lineage` (initial toolbar choice: `Bilateral` by default, or `Patrilineal`), `Height` (default `720px`), `Class`, `Error`, `HighlightedPersonId`, `OnOpenPerson`, `OpenPersonText`, and `ChooseAvatar`. The toolbar can switch lineage and siblings after that. Other attributes are passed to the outer element.
 
 ## Integrating with your own people
 

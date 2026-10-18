@@ -27,7 +27,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private string query = "";
     private int ancestry = 4;
     private int progeny = 4;
-    private bool siblings = true;
+    private bool siblings;
+    private LineageScope lineage = LineageScope.Bilateral;
+    private LineageScope lineageFromHost = LineageScope.Bilateral;
     private bool dragging;
     private bool saving;
     private bool shouldFit = true;
@@ -61,6 +63,10 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     [Parameter]
     public string Theme { get; set; } = "auto";
+
+    /// <summary>Both sides of the family, or only the father's line.</summary>
+    [Parameter]
+    public LineageScope Lineage { get; set; } = LineageScope.Bilateral;
 
     [Parameter]
     public string Height { get; set; } = "720px";
@@ -154,6 +160,12 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        if (Lineage != lineageFromHost)
+        {
+            lineageFromHost = Lineage;
+            lineage = Lineage;
+        }
+
         Rebuild();
         if (!fittedOnce || FocusPersonId != lastFocus)
         {
@@ -242,6 +254,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             AncestryDepth = ancestry,
             ProgenyDepth = progeny,
             ShowSiblings = siblings,
+            Lineage = lineage,
             ShowPlaceholders = Editable,
             Orientation = orientation,
         });
@@ -647,6 +660,19 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private void ToggleSiblings()
     {
         siblings = !siblings;
+        Rebuild();
+        shouldFit = true;
+        userAdjusted = false;
+    }
+
+    private void SetLineage(LineageScope scope)
+    {
+        if (lineage == scope)
+        {
+            return;
+        }
+
+        lineage = scope;
         Rebuild();
         shouldFit = true;
         userAdjusted = false;

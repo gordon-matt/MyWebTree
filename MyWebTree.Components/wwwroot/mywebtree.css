@@ -253,6 +253,22 @@
 
 .mwt-button.mwt-primary:hover { filter: brightness(1.05); background: var(--mwt-accent); }
 .mwt-button.mwt-danger { color: var(--mwt-danger); }
+
+.mwt-button.mwt-pressed,
+.mwt-icon-button.mwt-pressed,
+.mwt-button.mwt-pressed:hover,
+.mwt-icon-button.mwt-pressed:hover {
+    background: var(--mwt-accent-soft);
+    border-color: var(--mwt-accent);
+    color: var(--mwt-accent);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+
+.mwt-segment { display: inline-flex; align-items: center; }
+.mwt-segment .mwt-button { border-radius: 0; }
+.mwt-segment .mwt-button + .mwt-button { margin-left: -1px; }
+.mwt-segment .mwt-button:first-child { border-radius: 8px 0 0 8px; }
+.mwt-segment .mwt-button:last-child { border-radius: 0 8px 8px 0; }
 .mwt-button:disabled,
 .mwt-icon-button:disabled { opacity: 0.45; cursor: default; }
 

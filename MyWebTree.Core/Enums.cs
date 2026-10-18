@@ -39,3 +39,13 @@ public enum TreeOrientation
     Vertical,
     Horizontal,
 }
+
+/// <summary>Which ancestors are drawn above the focus person.</summary>
+public enum LineageScope
+{
+    /// <summary>Both parents, and each of their ancestors.</summary>
+    Bilateral,
+
+    /// <summary>The father's line. When there is no father, the other parent is used.</summary>
+    Patrilineal,
+}

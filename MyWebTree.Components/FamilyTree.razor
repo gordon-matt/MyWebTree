@@ -187,7 +187,11 @@
                     <button type="button" class="mwt-icon-button" aria-label="More descendants" @onclick="() => SetDepth(true, 1)"><Icon Name="plus" /></button>
                 </span>
                 <span class="mwt-divider"></span>
-                <button type="button" class="mwt-icon-button" title="@(siblings ? "Hide siblings" : "Show siblings")" aria-pressed="@siblings" @onclick="ToggleSiblings"><Icon Name="people" /></button>
+                <button type="button" class="mwt-icon-button @(siblings ? "mwt-pressed" : null)" title="@(siblings ? "Hide siblings" : "Show siblings")" aria-pressed="@siblings" @onclick="ToggleSiblings"><Icon Name="people" /></button>
+                <span class="mwt-segment" title="Which ancestors to show">
+                    <button type="button" class="mwt-button @(lineage == LineageScope.Bilateral ? "mwt-pressed" : null)" aria-pressed="@(lineage == LineageScope.Bilateral)" @onclick="() => SetLineage(LineageScope.Bilateral)">Both sides</button>
+                    <button type="button" class="mwt-button @(lineage == LineageScope.Patrilineal ? "mwt-pressed" : null)" aria-pressed="@(lineage == LineageScope.Patrilineal)" @onclick="() => SetLineage(LineageScope.Patrilineal)">Father's line</button>
+                </span>
                 <button type="button" class="mwt-button" title="Switch between vertical and horizontal" @onclick="ToggleOrientation">
                     @(orientation == TreeOrientation.Vertical ? "Vertical" : "Horizontal")
                 </button>

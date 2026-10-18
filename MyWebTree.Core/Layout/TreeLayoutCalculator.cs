@@ -81,7 +81,24 @@ public static class TreeLayoutCalculator
         var cards = root.Cards.ToList();
         if (ancestorOf is not null && ancestorDepth > 0)
         {
-            AttachAncestors(cards, map, ancestorOf, ancestorDepth, metrics);
+            if (options.Lineage == LineageScope.Patrilineal)
+            {
+                AttachAncestors(cards, map, ancestorOf, ancestorDepth, metrics);
+            }
+            else if (ancestorOf == focusId)
+            {
+                var claimed = cards.Select(card => card.Id).ToHashSet(StringComparer.Ordinal);
+                PlaceAbove(cards, focusId, BuildAncestorColumn(focusId, ancestorDepth, map, claimed, metrics), metrics);
+            }
+            else
+            {
+                var parents = map[focusId].Parents
+                    .Where(id => cards.Any(card => card.Id == id))
+                    .Distinct(StringComparer.Ordinal)
+                    .Take(2)
+                    .ToList();
+                AttachBothSides(cards, map, parents, ancestorDepth, metrics);
+            }
         }
 
         if (horizontal)
@@ -336,6 +353,203 @@ public static class TreeLayoutCalculator
 
         joined.Height = height;
         return joined;
+    }
+
+    private static void AttachBothSides(
+        List<TreeCard> cards,
+        Dictionary<string, PersonData> map,
+        List<string> parentIds,
+        int depth,
+        Metrics metrics)
+    {
+        var claimed = cards.Select(card => card.Id).ToHashSet(StringComparer.Ordinal);
+        var sides = parentIds
+            .Select(id => (Id: id, Block: BuildAncestorColumn(id, depth, map, claimed, metrics)))
+            .Where(side => side.Block.Cards.Count > 0)
+            .OrderBy(side => cards.First(card => card.Id == side.Id).X)
+            .ToList();
+        if (sides.Count == 0)
+        {
+            return;
+        }
+
+        if (sides.Count >= 2)
+        {
+            var left = sides[0];
+            var right = sides[1];
+            var leftCard = cards.First(card => card.Id == left.Id);
+            var rightCard = cards.First(card => card.Id == right.Id);
+            double leftMid = leftCard.X + (metrics.Across / 2);
+            double rightMid = rightCard.X + (metrics.Across / 2);
+            double leftEnd = leftMid - left.Block.StemX + left.Block.Width;
+            double rightStart = rightMid - right.Block.StemX;
+            double gap = leftEnd + metrics.SiblingGap - rightStart;
+            if (gap > 0)
+            {
+                for (int i = 0; i < cards.Count; i++)
+                {
+                    if (cards[i].X + (metrics.Across / 2) >= rightMid - 0.5)
+                    {
+                        cards[i] = cards[i] with { X = cards[i].X + gap };
+                    }
+                }
+            }
+        }
+
+        foreach (var side in sides)
+        {
+            PlaceAbove(cards, side.Id, side.Block, metrics);
+        }
+    }
+
+    private static Block BuildAncestorColumn(
+        string personId,
+        int depth,
+        Dictionary<string, PersonData> map,
+        HashSet<string> claimed,
+        Metrics metrics)
+    {
+        if (depth <= 0 || !map.TryGetValue(personId, out var person))
+        {
+            return new Block();
+        }
+
+        var parents = person.Parents
+            .Where(id => map.ContainsKey(id) && !claimed.Contains(id))
+            .Distinct(StringComparer.Ordinal)
+            .Select(id => map[id])
+            .OrderBy(parent => parent.Gender == Gender.Male ? 0 : parent.Gender == Gender.Female ? 1 : 2)
+            .ThenBy(parent => parent.Id, StringComparer.Ordinal)
+            .Take(2)
+            .ToList();
+        foreach (var parent in parents)
+        {
+            claimed.Add(parent.Id);
+        }
+
+        if (parents.Count == 0)
+        {
+            return new Block();
+        }
+
+        var columns = new List<Block>();
+        foreach (var parent in parents)
+        {
+            columns.Add(AnchorBelow(BuildAncestorColumn(parent.Id, depth - 1, map, claimed, metrics), parent, metrics));
+        }
+
+        return columns.Count == 1 ? columns[0] : JoinCouple(columns[0], columns[1], metrics);
+    }
+
+    /// <summary>
+    /// Puts this person on the bottom of the block, centered under their own ancestors.
+    /// A wife with no ancestors of her own therefore stays on her husband's row.
+    /// </summary>
+    private static Block AnchorBelow(Block above, PersonData person, Metrics metrics)
+    {
+        double parentCenter = above.Cards.Count == 0 ? metrics.Across / 2 : above.StemX;
+        double parentX = parentCenter - (metrics.Across / 2);
+        double parentY = above.Cards.Count == 0 ? 0 : above.Height + metrics.LevelGap;
+
+        double minX = parentX;
+        double maxX = parentX + metrics.Across;
+        foreach (var card in above.Cards)
+        {
+            minX = Math.Min(minX, card.X);
+            maxX = Math.Max(maxX, card.X + metrics.Across);
+        }
+
+        double shift = -minX;
+        var block = new Block
+        {
+            Width = maxX - minX,
+            Height = parentY + metrics.Down,
+            StemX = parentCenter + shift,
+        };
+        foreach (var card in above.Cards)
+        {
+            block.Cards.Add(card with { X = card.X + shift });
+        }
+
+        block.Cards.Add(Card(person, parentX + shift, parentY));
+        return block;
+    }
+
+    /// <summary>
+    /// Sits the two parents a spouse-gap apart and bottom-aligns them.
+    /// Ancestor cards on the same row are pushed apart; cards on a higher row may extend over a spouse who has none.
+    /// </summary>
+    private static Block JoinCouple(Block left, Block right, Metrics metrics)
+    {
+        double maxHeight = Math.Max(left.Height, right.Height);
+        double leftDy = maxHeight - left.Height;
+        double rightDy = maxHeight - right.Height;
+        double rightX = left.StemX - right.StemX + metrics.Across + metrics.SpouseGap;
+
+        double push = 0;
+        foreach (var leftCard in left.Cards)
+        {
+            double leftTop = leftCard.Y + leftDy;
+            double leftBottom = leftTop + metrics.Down;
+            foreach (var rightCard in right.Cards)
+            {
+                double rightTop = rightCard.Y + rightDy;
+                double rightBottom = rightTop + metrics.Down;
+                if (leftTop >= rightBottom - 0.5 || rightTop >= leftBottom - 0.5)
+                {
+                    continue;
+                }
+
+                double need = leftCard.X + metrics.Across + metrics.SpouseGap - (rightX + rightCard.X);
+                if (need > push)
+                {
+                    push = need;
+                }
+            }
+        }
+
+        rightX += push;
+        double origin = Math.Min(0, rightX);
+        double leftCenter = left.StemX - origin;
+        double rightCenter = rightX + right.StemX - origin;
+        var joined = new Block
+        {
+            Width = Math.Max(left.Width, rightX + right.Width) - origin,
+            Height = maxHeight,
+            StemX = (leftCenter + rightCenter) / 2,
+        };
+        foreach (var card in left.Cards)
+        {
+            joined.Cards.Add(card with { X = card.X - origin, Y = card.Y + leftDy });
+        }
+
+        foreach (var card in right.Cards)
+        {
+            joined.Cards.Add(card with { X = card.X + rightX - origin, Y = card.Y + rightDy });
+        }
+
+        return joined;
+    }
+
+    private static void PlaceAbove(List<TreeCard> cards, string anchorId, Block block, Metrics metrics)
+    {
+        if (block.Cards.Count == 0)
+        {
+            return;
+        }
+
+        var anchor = cards.FirstOrDefault(card => card.Id == anchorId);
+        if (anchor is null)
+        {
+            return;
+        }
+
+        double dx = anchor.X + (metrics.Across / 2) - block.StemX;
+        double dy = anchor.Y - metrics.LevelGap - block.Height;
+        foreach (var card in block.Cards)
+        {
+            cards.Add(card with { X = card.X + dx, Y = card.Y + dy });
+        }
     }
 
     private static void AttachAncestors(
