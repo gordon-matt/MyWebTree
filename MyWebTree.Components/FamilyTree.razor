@@ -198,8 +198,7 @@
             </div>
 
             <div class="mwt-viewport @(dragging ? "mwt-dragging" : null)" @ref="viewport"
-                 @onpointerdown="PanStart" @onpointermove="PanMove" @onpointerup="PanEnd" @onpointerleave="PanEnd"
-                 @onwheel="OnWheel" @onwheel:preventDefault="true">
+                 @onpointerdown="PanStart" @onpointermove="PanMove" @onpointerup="PanEnd" @onpointerleave="PanEnd">
                 @if (People.Count == 0)
                 {
                     <div class="mwt-empty">

@@ -173,6 +173,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/MyWebTree.Components/mywebtree.js");
             self = DotNetObjectReference.Create(this);
             await module.InvokeVoidAsync("watch", viewport, self);
+            await module.InvokeVoidAsync("bindWheel", viewport, self);
         }
 
         if (!shouldFit || module is null)
@@ -523,6 +524,28 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
     }
 
+    public Task CenterOnAsync(string personId)
+    {
+        if (string.IsNullOrWhiteSpace(personId) || People.All(person => person.Id != personId))
+        {
+            return Task.CompletedTask;
+        }
+
+        selectedId = personId;
+        editor = null;
+        query = string.Empty;
+        confirmDelete = false;
+        if (personId == FocusPersonId)
+        {
+            shouldFit = true;
+            userAdjusted = false;
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
+
+        return FocusAsync(personId);
+    }
+
     private Task FocusAsync(string personId) =>
         personId == FocusPersonId
             ? Task.CompletedTask
@@ -745,20 +768,14 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private void PanEnd(PointerEventArgs e) => dragging = false;
 
-    private void OnWheel(WheelEventArgs e)
+    [JSInvokable]
+    public void ApplyView(double x, double y, double nextScale)
     {
-        if (scale <= 0)
-        {
-            scale = 1;
-        }
-
+        panX = x;
+        panY = y;
+        scale = nextScale;
         userAdjusted = true;
-        double next = Math.Clamp(scale * (e.DeltaY < 0 ? 1.1 : 1 / 1.1), 0.12, 2.2);
-        double worldX = (e.OffsetX - panX) / scale;
-        double worldY = (e.OffsetY - panY) / scale;
-        scale = next;
-        panX = e.OffsetX - (worldX * scale);
-        panY = e.OffsetY - (worldY * scale);
+        StateHasChanged();
     }
 
     private async Task ZoomByAsync(double factor)
