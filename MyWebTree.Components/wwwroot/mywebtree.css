@@ -252,7 +252,8 @@
 }
 
 .mwt-button.mwt-primary:hover { filter: brightness(1.05); background: var(--mwt-accent); }
-.mwt-button.mwt-danger { color: var(--mwt-danger); }
+.mwt-button.mwt-danger,
+.mwt-icon-button.mwt-danger { color: var(--mwt-danger); }
 
 .mwt-button.mwt-pressed,
 .mwt-icon-button.mwt-pressed,
@@ -283,7 +284,9 @@
 
 .mwt-icon { width: 16px; height: 16px; display: block; }
 
-.mwt-add-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.mwt-add { margin-top: 16px; }
+.mwt-add .mwt-kicker { margin-bottom: 8px; }
+.mwt-add-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .mwt-add-row .mwt-button { padding: 5px 8px; font-size: 12px; }
 
 .mwt-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }

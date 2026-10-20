@@ -108,10 +108,30 @@
                         <p class="mwt-notes">@person.Notes</p>
                     }
 
-                    @if (OnOpenPerson.HasDelegate)
-                    {
-                        <div class="mwt-actions">
+                    <div class="mwt-actions">
+                        @if (OnOpenPerson.HasDelegate)
+                        {
                             <button type="button" class="mwt-button" @onclick="() => OpenSelectedAsync(person)">@OpenPersonText</button>
+                        }
+                        @if (Editable)
+                        {
+                            <button type="button" class="mwt-icon-button" title="Edit" aria-label="Edit" @onclick="EditSelected"><Icon Name="edit" /></button>
+                            <button type="button" class="mwt-icon-button" title="Center" aria-label="Center" @onclick="() => FocusAsync(person.Id)"><Icon Name="center" /></button>
+                            <button type="button" class="mwt-icon-button mwt-danger" title="Delete" aria-label="Delete" @onclick="() => confirmDelete = true"><Icon Name="trash" /></button>
+                        }
+                        else
+                        {
+                            <button type="button" class="mwt-icon-button" title="Center" aria-label="Center" @onclick="() => FocusAsync(person.Id)"><Icon Name="center" /></button>
+                        }
+                    </div>
+                    @if (Editable && confirmDelete)
+                    {
+                        <div class="mwt-confirm">
+                            <p>Remove @person.DisplayName from the tree? Their relatives stay.</p>
+                            <div class="mwt-form-actions">
+                                <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="DeleteAsync">Delete</button>
+                                <button type="button" class="mwt-button" @onclick="() => confirmDelete = false">Keep</button>
+                            </div>
                         </div>
                     }
                     @if (Editable)
@@ -132,33 +152,15 @@
                                 </div>
                             }
                         </div>
-                        <div class="mwt-add-row">
-                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Father))" @onclick="() => OpenAdd(PlaceholderKind.Father, person.Id)">Father</button>
-                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Mother))" @onclick="() => OpenAdd(PlaceholderKind.Mother, person.Id)">Mother</button>
-                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Spouse))" @onclick="() => OpenAdd(PlaceholderKind.Spouse, person.Id)">Spouse</button>
-                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Son))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Male)">Son</button>
-                            <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Daughter))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Female)">Daughter</button>
-                        </div>
-                        <div class="mwt-actions">
-                            <button type="button" class="mwt-button" @onclick="EditSelected">Edit</button>
-                            <button type="button" class="mwt-button" @onclick="() => FocusAsync(person.Id)">Center</button>
-                            <button type="button" class="mwt-button mwt-danger" @onclick="() => confirmDelete = true">Delete</button>
-                        </div>
-                        @if (confirmDelete)
-                        {
-                            <div class="mwt-confirm">
-                                <p>Remove @person.DisplayName from the tree? Their relatives stay.</p>
-                                <div class="mwt-form-actions">
-                                    <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="DeleteAsync">Delete</button>
-                                    <button type="button" class="mwt-button" @onclick="() => confirmDelete = false">Keep</button>
-                                </div>
+                        <div class="mwt-add">
+                            <p class="mwt-kicker">Add</p>
+                            <div class="mwt-add-row">
+                                <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Father))" @onclick="() => OpenAdd(PlaceholderKind.Father, person.Id)">Father</button>
+                                <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Mother))" @onclick="() => OpenAdd(PlaceholderKind.Mother, person.Id)">Mother</button>
+                                <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Spouse))" @onclick="() => OpenAdd(PlaceholderKind.Spouse, person.Id)">Spouse</button>
+                                <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Son))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Male)">Son</button>
+                                <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Daughter))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Female)">Daughter</button>
                             </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="mwt-actions">
-                            <button type="button" class="mwt-button" @onclick="() => FocusAsync(person.Id)">Center</button>
                         </div>
                     }
                 }
