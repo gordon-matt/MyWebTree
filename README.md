@@ -199,9 +199,9 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 
 `MyWebTree.Demo.Blazor` runs at https://localhost:7427. It uses SQLite, seeds the Ward family, and saves through `IFamilyTreeService`.
 
-## Credis
+## Credits
 
-MyWebTree was inspired by [family-chart.js](https://github.com/donatso/family-chart)
+MyWebTree is derived from [family-chart](https://github.com/donatso/family-chart) by [@donatso](https://github.com/donatso), as such it inherits the MIT license.
 
 ## Support
 
