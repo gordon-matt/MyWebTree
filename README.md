@@ -1,4 +1,4 @@
-A Blazor family tree for .NET 10. Hand it a list of people and it draws the chart, edits relatives, and hands the change back. Storage is optional: the included service keeps trees in SQLite, or the host can keep people in its own database and only use the component.
+A Blazor family tree for .NET 10. Hand it a list of people and it draws the chart, edits relatives, and hands the change back. Storage is optional: the included service keeps trees in SQLite, SQL Server, PostgreSQL, or MySQL, or the host can keep people in its own database and only use the component.
 
 ## Screenshots
 <img src="https://github.com/gordon-matt/MyWebTree/blob/master/_Misc/Screenshots/Light.png" alt="Light Theme" width="100%" />
@@ -24,6 +24,9 @@ MyWebTree does not authenticate anyone and does not know about profile pages, up
 | `MyWebTree.Core` | `PersonData`, `PartialDate`, `FamilyGraphEditor`, and the layout calculator. Depends on Ardalis.Result. |
 | `MyWebTree.Data` | Entities and the EF Core model. Tables live in the `webtree` schema. |
 | `MyWebTree.Data.Sqlite` | SQLite. Register it with `AddMyWebTreeSqlite()`. |
+| `MyWebTree.Data.Sql` | SQL Server. Register it with `AddMyWebTreeSqlServer()`. |
+| `MyWebTree.Data.Npgsql` | PostgreSQL. Register it with `AddMyWebTreeNpgsql()`. |
+| `MyWebTree.Data.MySql` | MySQL. Register it with `AddMyWebTreeMySql()`. |
 | `MyWebTree.Services` | `IFamilyTreeService` and the Extenso repositories. |
 | `MyWebTree.Components` | The `FamilyTree` Razor component, its JavaScript and CSS. |
 | `MyWebTree.Tests` | xUnit tests for the graph rules and a SQLite round trip. |
@@ -37,7 +40,7 @@ Repositories are Extenso `IRepository<T>` instances bound to `IMyWebTreeDbContex
 
 ## Getting started
 
-Reference `MyWebTree.Components` for the UI. Reference `MyWebTree.Services` and `MyWebTree.Data.Sqlite` as well when MyWebTree should own the database.
+Reference `MyWebTree.Components` for the UI. Reference `MyWebTree.Services` and one data project when MyWebTree should own the database. Register exactly one of `AddMyWebTreeSqlite()`, `AddMyWebTreeSqlServer()`, `AddMyWebTreeNpgsql()`, or `AddMyWebTreeMySql()`.
 
 ```csharp
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
@@ -46,6 +49,14 @@ builder.Services
     .AddMyWebTreeSqlite(builder.Configuration.GetConnectionString("MyWebTree"));
 
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+```
+
+SQL Server, PostgreSQL, and MySQL use the same call with their own method. Each needs `ConnectionStrings:MyWebTree`. SQLite does not: omit the connection string and it stores `MyWebTree.db` under the user's local application data folder.
+
+```csharp
+builder.Services.AddMyWebTreeSqlServer(connectionString);
+builder.Services.AddMyWebTreeNpgsql(connectionString);
+builder.Services.AddMyWebTreeMySql(connectionString);
 ```
 
 Add the stylesheet to `App.razor`, and `@using MyWebTree.Components` to `_Imports.razor`:
@@ -61,10 +72,15 @@ Add the stylesheet to `App.razor`, and `@using MyWebTree.Components` to `_Import
             Changed="OnChanged" />
 ```
 
-The component must render interactively. `AddMyWebTreeSqlite()` with no connection string stores `MyWebTree.db` under the user's local application data folder. `AutoMigrate` is on by default. Set `SeedSample` to create the Ward family when the database has no trees yet.
+The component must render interactively. `AutoMigrate` is on by default. Set `SeedSample` to create the Ward family when the database has no trees yet.
+
+`Database:Provider` is `Sqlite`, `SqlServer`, `Npgsql`, or `MySql`. The demo reads that value and calls the matching registration method. An unknown name fails at startup.
 
 ```json
 {
+  "Database": {
+    "Provider": "Sqlite"
+  },
   "ConnectionStrings": {
     "MyWebTree": "Data Source=App_Data/MyWebTree.db"
   },
@@ -75,7 +91,13 @@ The component must render interactively. `AddMyWebTreeSqlite()` with no connecti
 }
 ```
 
-SQLite has no schemas. The provider ignores that warning and creates the same tables. The migrations history table is `__MyWebTreeMigrationsHistory`, so MyWebTree can share a database with the host.
+```text
+Server=localhost;Database=MyWebTree;Trusted_Connection=True;TrustServerCertificate=True
+Host=localhost;Database=MyWebTree;Username=postgres;Password=postgres
+Server=localhost;Database=MyWebTree;User=root;Password=root
+```
+
+Those three strings are SQL Server, PostgreSQL, and MySQL. Each of those providers has its own migrations. SQL Server, PostgreSQL, and MySQL create the tables in the `webtree` schema. SQLite has no schemas, so that provider ignores the warning and creates the same tables without one. The migrations history table is `__MyWebTreeMigrationsHistory`, in `webtree` where the provider has schemas, so MyWebTree can share a database with the host.
 
 Parameters: `People`, `FocusPersonId`, `Changed`, `Editable` (default `true`), `Theme` (`light`, `dark`, `auto`, `bootstrap`), `Lineage` (initial toolbar choice: `Bilateral` by default, or `Patrilineal`), `Height` (default `720px`), `Class`, `Error`, `HighlightedPersonId`, `OnOpenPerson`, `OpenPersonText`, and `ChooseAvatar`. The toolbar can switch lineage and siblings after that. Other attributes are passed to the outer element.
 
@@ -202,7 +224,7 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 
 ## Demo
 
-`MyWebTree.Demo.Blazor` runs at https://localhost:7427. It uses SQLite, seeds the Ward family, and saves through `IFamilyTreeService`.
+`MyWebTree.Demo.Blazor` runs at https://localhost:7427. It reads `Database:Provider`, uses SQLite when that setting is missing, seeds the Ward family, and saves through `IFamilyTreeService`.
 
 ## Credits
 
