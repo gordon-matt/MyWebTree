@@ -9,6 +9,9 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\MyWebTree.Components\MyWebTree.Components.csproj" />
+		<ProjectReference Include="..\MyWebTree.Data.MySql\MyWebTree.Data.MySql.csproj" />
+		<ProjectReference Include="..\MyWebTree.Data.Npgsql\MyWebTree.Data.Npgsql.csproj" />
+		<ProjectReference Include="..\MyWebTree.Data.Sql\MyWebTree.Data.Sql.csproj" />
 		<ProjectReference Include="..\MyWebTree.Data.Sqlite\MyWebTree.Data.Sqlite.csproj" />
 		<ProjectReference Include="..\MyWebTree.Services\MyWebTree.Services.csproj" />
 	</ItemGroup>

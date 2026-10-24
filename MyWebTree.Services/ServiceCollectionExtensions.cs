@@ -8,7 +8,8 @@ public static class ServiceCollectionExtensions
     {
         /// <summary>
         /// Registers MyWebTree services and Extenso repositories bound to <see cref="IMyWebTreeDbContextFactory"/>.
-        /// Add a database as well, for example <c>AddMyWebTreeSqlite()</c>.
+        /// Add a database as well: <c>AddMyWebTreeSqlite()</c>, <c>AddMyWebTreeSqlServer()</c>,
+        /// <c>AddMyWebTreeNpgsql()</c>, or <c>AddMyWebTreeMySql()</c>.
         /// </summary>
         public IServiceCollection AddMyWebTreeServices(Action<MyWebTreeOptions>? configure = null)
         {

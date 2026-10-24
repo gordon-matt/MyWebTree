@@ -4,6 +4,9 @@
   </Folder>
   <Folder Name="/Data/">
     <Project Path="MyWebTree.Data/MyWebTree.Data.csproj" />
+    <Project Path="MyWebTree.Data.MySql/MyWebTree.Data.MySql.csproj" />
+    <Project Path="MyWebTree.Data.Npgsql/MyWebTree.Data.Npgsql.csproj" />
+    <Project Path="MyWebTree.Data.Sql/MyWebTree.Data.Sql.csproj" />
     <Project Path="MyWebTree.Data.Sqlite/MyWebTree.Data.Sqlite.csproj" />
   </Folder>
   <Folder Name="/Demos/">

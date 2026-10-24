@@ -36,6 +36,9 @@ public static class Constants
 
     public static class DatabaseProviders
     {
+        public const string MySql = "MySql";
+        public const string Npgsql = "Npgsql";
         public const string Sqlite = "Sqlite";
+        public const string SqlServer = "SqlServer";
     }
 }
