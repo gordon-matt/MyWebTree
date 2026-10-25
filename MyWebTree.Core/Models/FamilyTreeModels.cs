@@ -75,5 +75,8 @@ public sealed record FamilyTreeChange(
     string? PersonId = null,
     string? OtherPersonId = null);
 
+/// <summary>Generations of ancestors and descendants the tree is showing. Raised when the user changes either.</summary>
+public sealed record TreeDepths(int Ancestry, int Progeny);
+
 /// <summary>Passed to a host that wants to supply a picture instead of a pasted address.</summary>
 public sealed record AvatarRequest(string? PersonId, string? CurrentUrl);

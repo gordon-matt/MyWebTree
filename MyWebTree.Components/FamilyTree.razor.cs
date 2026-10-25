@@ -25,8 +25,12 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private string? lastFocus;
     private string? formError;
     private string query = "";
-    private int ancestry = 4;
-    private int progeny = 4;
+    private const int DefaultDepth = 4;
+
+    private int ancestry = DefaultDepth;
+    private int progeny = DefaultDepth;
+    private int ancestryFromHost = DefaultDepth;
+    private int progenyFromHost = DefaultDepth;
     private bool siblings;
     private LineageScope lineage = LineageScope.Bilateral;
     private LineageScope lineageFromHost = LineageScope.Bilateral;
@@ -67,6 +71,25 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     /// <summary>Both sides of the family, or only the father's line.</summary>
     [Parameter]
     public LineageScope Lineage { get; set; } = LineageScope.Bilateral;
+
+    /// <summary>
+    /// Generations of ancestors to show. The toolbar can change it afterwards, and <see cref="DepthsChanged"/> reports
+    /// that, so a host can remember the choice and pass it back here next time.
+    /// </summary>
+    [Parameter]
+    public int AncestryDepth { get; set; } = DefaultDepth;
+
+    /// <summary>Generations of descendants to show. See <see cref="AncestryDepth"/>.</summary>
+    [Parameter]
+    public int ProgenyDepth { get; set; } = DefaultDepth;
+
+    /// <summary>The most generations the toolbar allows in either direction.</summary>
+    [Parameter]
+    public int MaxGenerations { get; set; } = 8;
+
+    /// <summary>Raised when the user steps either generation count up or down.</summary>
+    [Parameter]
+    public EventCallback<TreeDepths> DepthsChanged { get; set; }
 
     [Parameter]
     public string Height { get; set; } = "720px";
@@ -165,6 +188,23 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             lineageFromHost = Lineage;
             lineage = Lineage;
         }
+
+        // Same rule as Lineage: a value from the host replaces the toolbar's only when the host changes it.
+        if (AncestryDepth != ancestryFromHost)
+        {
+            ancestryFromHost = AncestryDepth;
+            ancestry = AncestryDepth;
+        }
+
+        if (ProgenyDepth != progenyFromHost)
+        {
+            progenyFromHost = ProgenyDepth;
+            progeny = ProgenyDepth;
+        }
+
+        // The limit can be lowered after the tree is up, so the current values are checked every time.
+        ancestry = Math.Clamp(ancestry, 0, MaxDepth);
+        progeny = Math.Clamp(progeny, 0, MaxDepth);
 
         Rebuild();
         if (!fittedOnce || FocusPersonId != lastFocus)
@@ -641,20 +681,23 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void SetDepth(bool descendants, int delta)
+    private int MaxDepth => Math.Max(0, MaxGenerations);
+
+    private async Task SetDepthAsync(bool descendants, int delta)
     {
         if (descendants)
         {
-            progeny = Math.Clamp(progeny + delta, 0, 8);
+            progeny = Math.Clamp(progeny + delta, 0, MaxDepth);
         }
         else
         {
-            ancestry = Math.Clamp(ancestry + delta, 0, 8);
+            ancestry = Math.Clamp(ancestry + delta, 0, MaxDepth);
         }
 
         Rebuild();
         shouldFit = true;
         userAdjusted = false;
+        await DepthsChanged.InvokeAsync(new TreeDepths(ancestry, progeny));
     }
 
     private void ToggleSiblings()

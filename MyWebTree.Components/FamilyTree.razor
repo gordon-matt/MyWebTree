@@ -179,14 +179,14 @@
                 <button type="button" class="mwt-icon-button" title="Redo" disabled="@(redo.Count == 0 || saving)" @onclick="RedoAsync"><Icon Name="redo" /></button>
                 <span class="mwt-divider"></span>
                 <span class="mwt-stepper" title="Generations of ancestors">
-                    <button type="button" class="mwt-icon-button" aria-label="Fewer ancestors" @onclick="() => SetDepth(false, -1)"><Icon Name="minus" /></button>
+                    <button type="button" class="mwt-icon-button" aria-label="Fewer ancestors" disabled="@(ancestry <= 0)" @onclick="() => SetDepthAsync(false, -1)"><Icon Name="minus" /></button>
                     <strong>@ancestry</strong>
-                    <button type="button" class="mwt-icon-button" aria-label="More ancestors" @onclick="() => SetDepth(false, 1)"><Icon Name="plus" /></button>
+                    <button type="button" class="mwt-icon-button" aria-label="More ancestors" disabled="@(ancestry >= MaxDepth)" @onclick="() => SetDepthAsync(false, 1)"><Icon Name="plus" /></button>
                 </span>
                 <span class="mwt-stepper" title="Generations of descendants">
-                    <button type="button" class="mwt-icon-button" aria-label="Fewer descendants" @onclick="() => SetDepth(true, -1)"><Icon Name="minus" /></button>
+                    <button type="button" class="mwt-icon-button" aria-label="Fewer descendants" disabled="@(progeny <= 0)" @onclick="() => SetDepthAsync(true, -1)"><Icon Name="minus" /></button>
                     <strong>@progeny</strong>
-                    <button type="button" class="mwt-icon-button" aria-label="More descendants" @onclick="() => SetDepth(true, 1)"><Icon Name="plus" /></button>
+                    <button type="button" class="mwt-icon-button" aria-label="More descendants" disabled="@(progeny >= MaxDepth)" @onclick="() => SetDepthAsync(true, 1)"><Icon Name="plus" /></button>
                 </span>
                 <span class="mwt-divider"></span>
                 <button type="button" class="mwt-icon-button @(siblings ? "mwt-pressed" : null)" title="@(siblings ? "Hide siblings" : "Show siblings")" aria-pressed="@siblings" @onclick="ToggleSiblings"><Icon Name="people" /></button>
