@@ -32,6 +32,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private int ancestryFromHost = DefaultDepth;
     private int progenyFromHost = DefaultDepth;
     private bool siblings;
+    private bool siblingsFromHost;
     private LineageScope lineage = LineageScope.Bilateral;
     private LineageScope lineageFromHost = LineageScope.Bilateral;
     private bool dragging;
@@ -49,6 +50,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private double originX;
     private double originY;
     private TreeOrientation orientation = TreeOrientation.Vertical;
+    private TreeOrientation orientationFromHost = TreeOrientation.Vertical;
 
     [Inject]
     public IJSRuntime JS { get; set; } = default!;
@@ -68,9 +70,17 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     [Parameter]
     public string Theme { get; set; } = "auto";
 
-    /// <summary>Both sides of the family, or only the father's line.</summary>
+    /// <summary>Both sides of the family, or only the father's line. The toolbar can change it afterwards.</summary>
     [Parameter]
     public LineageScope Lineage { get; set; } = LineageScope.Bilateral;
+
+    /// <summary>Draw brothers and sisters beside the focus person. The toolbar can change it afterwards.</summary>
+    [Parameter]
+    public bool ShowSiblings { get; set; }
+
+    /// <summary>Down the page, or across it. The toolbar can change it afterwards.</summary>
+    [Parameter]
+    public TreeOrientation Orientation { get; set; } = TreeOrientation.Vertical;
 
     /// <summary>
     /// Generations of ancestors to show. The toolbar can change it afterwards, and <see cref="DepthsChanged"/> reports
@@ -90,6 +100,13 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     /// <summary>Raised when the user steps either generation count up or down.</summary>
     [Parameter]
     public EventCallback<TreeDepths> DepthsChanged { get; set; }
+
+    /// <summary>
+    /// Raised when the user changes generations, siblings, lineage or orientation.
+    /// Pass the value back through the matching parameters next time.
+    /// </summary>
+    [Parameter]
+    public EventCallback<TreeView> ViewChanged { get; set; }
 
     [Parameter]
     public string Height { get; set; } = "720px";
@@ -187,6 +204,18 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         {
             lineageFromHost = Lineage;
             lineage = Lineage;
+        }
+
+        if (ShowSiblings != siblingsFromHost)
+        {
+            siblingsFromHost = ShowSiblings;
+            siblings = ShowSiblings;
+        }
+
+        if (Orientation != orientationFromHost)
+        {
+            orientationFromHost = Orientation;
+            orientation = Orientation;
         }
 
         // Same rule as Lineage: a value from the host replaces the toolbar's only when the host changes it.
@@ -697,18 +726,19 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         Rebuild();
         shouldFit = true;
         userAdjusted = false;
-        await DepthsChanged.InvokeAsync(new TreeDepths(ancestry, progeny));
+        await NotifyViewAsync();
     }
 
-    private void ToggleSiblings()
+    private async Task ToggleSiblings()
     {
         siblings = !siblings;
         Rebuild();
         shouldFit = true;
         userAdjusted = false;
+        await NotifyViewAsync();
     }
 
-    private void SetLineage(LineageScope scope)
+    private async Task SetLineage(LineageScope scope)
     {
         if (lineage == scope)
         {
@@ -719,14 +749,22 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         Rebuild();
         shouldFit = true;
         userAdjusted = false;
+        await NotifyViewAsync();
     }
 
-    private void ToggleOrientation()
+    private async Task ToggleOrientation()
     {
         orientation = orientation == TreeOrientation.Vertical ? TreeOrientation.Horizontal : TreeOrientation.Vertical;
         Rebuild();
         shouldFit = true;
         userAdjusted = false;
+        await NotifyViewAsync();
+    }
+
+    private async Task NotifyViewAsync()
+    {
+        await DepthsChanged.InvokeAsync(new TreeDepths(ancestry, progeny));
+        await ViewChanged.InvokeAsync(new TreeView(ancestry, progeny, siblings, lineage, orientation));
     }
 
     private void SetBirthYear(ChangeEventArgs e) => SetYear(true, e);

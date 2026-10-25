@@ -78,5 +78,16 @@ public sealed record FamilyTreeChange(
 /// <summary>Generations of ancestors and descendants the tree is showing. Raised when the user changes either.</summary>
 public sealed record TreeDepths(int Ancestry, int Progeny);
 
+/// <summary>
+/// The toolbar choices a host can remember: how many generations, whether siblings are shown,
+/// which side of the family, and whether the chart runs down or across.
+/// </summary>
+public sealed record TreeView(
+    int Ancestry,
+    int Progeny,
+    bool ShowSiblings,
+    LineageScope Lineage,
+    TreeOrientation Orientation);
+
 /// <summary>Passed to a host that wants to supply a picture instead of a pasted address.</summary>
 public sealed record AvatarRequest(string? PersonId, string? CurrentUrl);
