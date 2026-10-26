@@ -5,6 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<Description>Provider-agnostic data model for MyWebTree. Tables live in the webtree schema.</Description>
+		<Version>1.0.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>

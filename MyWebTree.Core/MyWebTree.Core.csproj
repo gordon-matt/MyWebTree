@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
@@ -7,6 +7,7 @@
 		<RootNamespace>MyWebTree</RootNamespace>
 		<Description>Family tree models, layout and the rules for adding and removing relatives.</Description>
 		<IsTrimmable>true</IsTrimmable>
+		<Version>1.0.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
