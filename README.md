@@ -1,3 +1,5 @@
+<img src="https://github.com/gordon-matt/MyWebTree/blob/master/_Misc/Logo.png" alt="Logo" width="300" />
+
 A Blazor family tree for .NET 10. Hand it a list of people and it draws the chart, edits relatives, and hands the change back. Storage is optional: the included service keeps trees in SQLite, SQL Server, PostgreSQL, or MySQL, or the host can keep people in its own database and only use the component.
 
 ## Screenshots
