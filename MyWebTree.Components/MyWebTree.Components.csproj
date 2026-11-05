@@ -6,13 +6,13 @@
 		<Nullable>enable</Nullable>
 		<RootNamespace>MyWebTree.Components</RootNamespace>
 		<Description>Blazor family tree. Drop it into a Blazor app and hand it a list of people.</Description>
+		<PackageTags>family-tree;genealogy;family-chart;blazor;razor-components;mywebtree</PackageTags>
 		<IsTrimmable>true</IsTrimmable>
-		<Version>1.0.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<SupportedPlatform Include="browser" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.13" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.14" />
 	</ItemGroup>
 
 	<ItemGroup>

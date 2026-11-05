@@ -5,13 +5,13 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<Description>MySQL storage for MyWebTree.</Description>
-		<Version>1.0.1</Version>
+		<PackageTags>family-tree;genealogy;entity-framework-core;efcore;mysql;mywebtree</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.7" />
-		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>

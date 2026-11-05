@@ -5,13 +5,13 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<Description>Provider-agnostic data model for MyWebTree. Tables live in the webtree schema.</Description>
-		<Version>1.0.1</Version>
+		<PackageTags>family-tree;genealogy;entity-framework-core;efcore;data-model;mywebtree</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Extenso.Data.Entity" Version="10.2.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
-		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+		<PackageReference Include="Extenso.Data.Entity" Version="10.2.1" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
 	</ItemGroup>
 
 	<ItemGroup>
