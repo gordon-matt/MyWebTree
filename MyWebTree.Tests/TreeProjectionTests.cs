@@ -11,7 +11,7 @@ public class TreeProjectionTests
     [Fact]
     public void Projection_of_legacy_data_is_the_same_shape_as_the_input()
     {
-        var people = SampleFamily.Create();
+        var people = SampleFamily.Create(withParentSets: false);
 
         var nodes = TreeProjection.Build(people, null);
 
@@ -320,7 +320,7 @@ public class TreeLayoutParentSetTests
     [Fact]
     public void Layout_of_legacy_data_has_no_stubs_and_only_birth_links()
     {
-        var layout = TreeLayoutCalculator.Calculate(SampleFamily.Create(), new TreeLayoutOptions { FocusId = SampleFamily.FocusId, ShowSiblings = true });
+        var layout = TreeLayoutCalculator.Calculate(SampleFamily.Create(withParentSets: false), new TreeLayoutOptions { FocusId = SampleFamily.FocusId, ShowSiblings = true });
 
         Assert.DoesNotContain(layout.Cards, card => card.IsStub);
         Assert.All(layout.Links, link => Assert.Equal(ParentageType.Birth, link.Type));

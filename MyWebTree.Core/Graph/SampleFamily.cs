@@ -18,8 +18,12 @@ public static class SampleFamily
     /// <summary>
     /// Creates the value.
     /// </summary>
+    /// <param name="withParentSets">
+    /// Include the two people who show parent sets: one adopted child, and one child with a birth set and an
+    /// adoptive set. Pass false for the family as it was when every child had only birth parents.
+    /// </param>
     /// <returns>The person datas.</returns>
-    public static IReadOnlyList<PersonData> Create()
+    public static IReadOnlyList<PersonData> Create(bool withParentSets = true)
     {
         var people = new Dictionary<string, PersonData>(StringComparer.Ordinal);
 
@@ -71,7 +75,28 @@ public static class SampleFamily
         FamilyLinks.Parent(people, "omar", "sofia");
         FamilyLinks.Parent(people, "lena", "sofia");
 
-        return people.Values.ToList();
+        if (!withParentSets)
+        {
+            return people.Values.ToList();
+        }
+
+        // Tomás was adopted by David and Priya. He has only that one set of parents.
+        Add(people, "tomas", Gender.Male, "Tomás", "Ward", 2001, null, "Pune");
+        FamilyLinks.SetParentSets(people, "tomas",
+        [
+            new ParentSetData { Id = "tomas-adopted", Type = ParentageType.Adopted, IsPrimary = true, ParentIds = ["david", "priya"], Date = new PartialDate(2003) },
+        ]);
+
+        // Tess was born to Ellen and adopted by her aunt and uncle, Margaret and Robert, so she has two sets.
+        // The adoptive set is the primary one, which is how the family describes her.
+        Add(people, "tess", Gender.Female, "Tess", "Hale", 1978, null, "Bristol");
+        FamilyLinks.SetParentSets(people, "tess",
+        [
+            new ParentSetData { Id = "tess-birth", Type = ParentageType.Birth, ParentIds = ["ellen"] },
+            new ParentSetData { Id = "tess-adopted", Type = ParentageType.Adopted, IsPrimary = true, ParentIds = ["margaret", "robert"], Date = new PartialDate(1981) },
+        ]);
+
+        return people.Values.Select(person => ParentSetRules.NormalizePerson(person)).ToList();
     }
 
     private static void Add(

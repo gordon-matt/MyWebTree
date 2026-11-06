@@ -25,6 +25,8 @@
     --mwt-female: #e06b8a;
     --mwt-unknown: #8b939e;
     --mwt-marked: #b58105;
+    --mwt-adopted: #7c3aed;
+    --mwt-foster: #0f766e;
     --mwt-card-w: 232px;
     --mwt-card-h: 84px;
 
@@ -54,6 +56,8 @@
     --mwt-female: #f0a0b4;
     --mwt-unknown: #a8b0ba;
     --mwt-marked: #e3b341;
+    --mwt-adopted: #a78bfa;
+    --mwt-foster: #2dd4bf;
     color-scheme: dark;
 }
 
@@ -77,6 +81,8 @@
         --mwt-female: #f0a0b4;
         --mwt-unknown: #a8b0ba;
         --mwt-marked: #e3b341;
+        --mwt-adopted: #a78bfa;
+        --mwt-foster: #2dd4bf;
         color-scheme: dark;
     }
 }
@@ -95,6 +101,8 @@
     --mwt-accent-soft: rgba(var(--bs-primary-rgb), 0.15);
     --mwt-danger: var(--bs-danger);
     --mwt-success: var(--bs-success);
+    --mwt-adopted: var(--bs-purple, #6f42c1);
+    --mwt-foster: var(--bs-teal, #20c997);
     color-scheme: normal;
 }
 
@@ -361,7 +369,11 @@
 
 .mwt-links { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
 .mwt-links line { stroke: var(--mwt-line); stroke-width: 1.6; stroke-linecap: round; }
-.mwt-links line.mwt-dashed { stroke-dasharray: 4 5; }
+/* Edge styles tell the kind of link by pattern, not colour: birth solid, adopted dashed, foster dotted.
+   A line to a placeholder is a faint solid line, so it can't be mistaken for an adopted link. */
+.mwt-links line.mwt-adopted { stroke-dasharray: 8 5; }
+.mwt-links line.mwt-foster { stroke-dasharray: 0.1 5.5; stroke-width: 2.2; }
+.mwt-links line.mwt-ghost { opacity: 0.4; }
 
 .mwt-card {
     position: absolute;
@@ -483,6 +495,160 @@
     text-align: center;
 }
 
+/* Parent sets: badge, stub cards, "N families" chip and popover, and the side panel list. */
+.mwt-badge {
+    position: absolute;
+    top: -7px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--mwt-surface-raised);
+    background: var(--mwt-adopted);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.mwt-badge.mwt-badge-foster { background: var(--mwt-foster); }
+
+/* The badge letter is for the eye; this is what a screen reader says in its place. */
+.mwt-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.mwt-card.mwt-stub {
+    opacity: 0.82;
+    background: color-mix(in srgb, var(--mwt-surface-raised) 88%, var(--mwt-bg));
+    box-shadow: none;
+}
+
+.mwt-stub-actions,
+.mwt-families {
+    position: absolute;
+    z-index: 2;
+    margin-top: calc(var(--mwt-card-h) - 11px);
+}
+
+.mwt-stub-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    width: var(--mwt-card-w);
+    padding: 0 10px;
+    pointer-events: none;
+}
+
+.mwt-stub-actions .mwt-chip { pointer-events: auto; }
+
+.mwt-families {
+    margin-left: calc(var(--mwt-card-w) - 10px);
+    transform: translateX(-100%);
+}
+
+.mwt-chip {
+    padding: 2px 9px;
+    border: 1px solid var(--mwt-border);
+    border-radius: 999px;
+    background: var(--mwt-surface-raised);
+    color: var(--mwt-text);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.mwt-chip:hover { border-color: var(--mwt-accent); color: var(--mwt-accent); }
+
+.mwt-popover {
+    position: absolute;
+    z-index: 5;
+    min-width: var(--mwt-card-w);
+    max-width: 340px;
+    margin-top: calc(var(--mwt-card-h) + 16px);
+    padding: 4px;
+    border: 1px solid var(--mwt-border);
+    border-radius: 10px;
+    background: var(--mwt-surface-raised);
+    box-shadow: var(--mwt-shadow);
+}
+
+.mwt-popover-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.mwt-popover-item:hover { background: var(--mwt-hover); }
+.mwt-popover-item.mwt-popover-current { font-weight: 650; }
+.mwt-check { width: 1em; flex: none; color: var(--mwt-accent); }
+
+.mwt-sets { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.mwt-sets .mwt-kicker { margin-bottom: 0; }
+
+.mwt-set {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--mwt-border);
+    border-radius: 9px;
+    background: var(--mwt-surface-raised);
+}
+
+.mwt-set.mwt-set-active { border-color: var(--mwt-accent); }
+.mwt-set-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.mwt-set-type { font-weight: 650; }
+
+select.mwt-set-type {
+    padding: 3px 6px;
+    border: 1px solid var(--mwt-border);
+    border-radius: 7px;
+    background: var(--mwt-surface-raised);
+}
+
+.mwt-tag {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--mwt-hover);
+    color: var(--mwt-muted);
+    font-size: 11px;
+}
+
+.mwt-tag.mwt-tag-active { background: var(--mwt-accent-soft); color: var(--mwt-accent); }
+
+.mwt-set-date { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--mwt-muted); }
+.mwt-set-date input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--mwt-border);
+    border-radius: 7px;
+    background: var(--mwt-surface-raised);
+    color: var(--mwt-text);
+}
+
+.mwt-set-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mwt-set-actions .mwt-button { padding: 4px 8px; font-size: 12px; }
+.mwt-set .mwt-meta { margin: 0; }
 @media (max-width: 800px) {
     .mwt-shell { flex-direction: column; }
     .mwt-panel { width: auto; max-height: 46%; border-right: 0; border-bottom: 1px solid var(--mwt-border); }

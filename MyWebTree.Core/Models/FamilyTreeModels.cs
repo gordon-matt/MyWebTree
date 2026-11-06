@@ -121,43 +121,51 @@ public enum FamilyTreeChangeKind
     /// <summary><see cref="FamilyTreeChange.PersonId"/> was removed and unlinked. Relatives stay.</summary>
     Removed,
 
-/// <summary>
-/// The link between <see cref="FamilyTreeChange.PersonId"/> and <see cref="FamilyTreeChange.OtherPersonId"/> was removed.
-/// Neither person was deleted.
-/// </summary>
-Unlinked,
+    /// <summary>
+    /// The link between <see cref="FamilyTreeChange.PersonId"/> and <see cref="FamilyTreeChange.OtherPersonId"/> was removed.
+    /// Neither person was deleted. For a parent link, <see cref="FamilyTreeChange.ParentSetId"/> and
+    /// <see cref="FamilyTreeChange.Type"/> name the set the parent was taken out of. A set left with nobody in it
+    /// is gone from <see cref="FamilyTreeChange.People"/>.
+    /// </summary>
+    Unlinked,
 
-/// <summary>
-/// A link was added between <see cref="FamilyTreeChange.PersonId"/> (the person who was selected)
-/// and <see cref="FamilyTreeChange.OtherPersonId"/> (the person who was clicked).
-/// <see cref="FamilyTreeChange.Link"/> says how the second person relates to the first.
-/// Nobody was created or deleted.
-/// </summary>
-Linked,
+    /// <summary>
+    /// A link was added between <see cref="FamilyTreeChange.PersonId"/> (the person who was selected)
+    /// and <see cref="FamilyTreeChange.OtherPersonId"/> (the person who was clicked).
+    /// <see cref="FamilyTreeChange.Link"/> says how the second person relates to the first.
+    /// A parent who joined a set the child already had is reported here, with
+    /// <see cref="FamilyTreeChange.ParentSetId"/> and <see cref="FamilyTreeChange.Type"/> naming that set.
+    /// A parent who started a new set is reported as <see cref="ParentSetAdded"/> instead.
+    /// Nobody was created or deleted.
+    /// </summary>
+    Linked,
 
-/// <summary>The centered person changed. Nobody's data changed.</summary>
-FocusChanged,
+    /// <summary>The centered person changed. Nobody's data changed.</summary>
+    FocusChanged,
 
-/// <summary>
-/// A new set of parents was added to <see cref="FamilyTreeChange.PersonId"/> (the child).
-/// <see cref="FamilyTreeChange.ParentSetId"/> and <see cref="FamilyTreeChange.Type"/> describe it.
-/// </summary>
-ParentSetAdded,
+    /// <summary>
+    /// A new set of parents was started for <see cref="FamilyTreeChange.PersonId"/> (the child) by linking an
+    /// existing person as a parent. <see cref="FamilyTreeChange.OtherPersonId"/> is that parent, and
+    /// <see cref="FamilyTreeChange.ParentSetId"/> and <see cref="FamilyTreeChange.Type"/> describe the set.
+    /// A new person added as a father or mother is reported as <see cref="Added"/>.
+    /// </summary>
+    ParentSetAdded,
 
-/// <summary>
-/// The type, the date, or the primary flag of a set of parents changed. <see cref="FamilyTreeChange.PersonId"/> is the child.
-/// When another set stopped being primary, read it from <see cref="FamilyTreeChange.People"/>.
-/// </summary>
-ParentSetUpdated,
+    /// <summary>
+    /// The type, the date, or the primary flag of a set of parents changed. <see cref="FamilyTreeChange.PersonId"/> is the child.
+    /// When another set stopped being primary, read it from <see cref="FamilyTreeChange.People"/>.
+    /// </summary>
+    ParentSetUpdated,
 
-/// <summary>A whole set of parents was removed from <see cref="FamilyTreeChange.PersonId"/> (the child). The parents stay.</summary>
-ParentSetRemoved,
+    /// <summary>A whole set of parents was removed from <see cref="FamilyTreeChange.PersonId"/> (the child). The parents stay.</summary>
+    ParentSetRemoved,
 }
 
 /// <summary>
 /// What the tree UI hands back after an edit, an undo, or a change of focus.
 /// <see cref="ParentSetId"/> and <see cref="Type"/> are filled for <see cref="FamilyTreeChangeKind.Linked"/> and
 /// <see cref="FamilyTreeChangeKind.Unlinked"/> when the link is a parent link, and for the three <c>ParentSet*</c> kinds.
+/// A set id is only unique among the sets of one child, so read it together with the child.
 /// </summary>
 public sealed record FamilyTreeChange(
     IReadOnlyList<PersonData> People,
@@ -168,20 +176,20 @@ public sealed record FamilyTreeChange(
     LinkKind? Link = null,
     string? ParentSetId = null,
     ParentageType? Type = null);
-
 /// <summary>Generations of ancestors and descendants the tree is showing. Raised when the user changes either.</summary>
 public sealed record TreeDepths(int Ancestry, int Progeny);
 
 /// <summary>
 /// The toolbar choices a host can remember: how many generations, whether siblings are shown,
-/// which side of the family, and whether the chart runs down or across.
+/// which side of the family, whether the chart runs down or across, and whether adopted and foster links are hidden.
 /// </summary>
 public sealed record TreeView(
     int Ancestry,
     int Progeny,
     bool ShowSiblings,
     LineageScope Lineage,
-    TreeOrientation Orientation);
+    TreeOrientation Orientation,
+    bool BloodRelativesOnly = false);
 
 /// <summary>Passed to a host that wants to supply a picture instead of a pasted address.</summary>
 public sealed record AvatarRequest(string? PersonId, string? CurrentUrl);

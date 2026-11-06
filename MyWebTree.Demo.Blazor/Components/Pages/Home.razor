@@ -57,6 +57,8 @@ else
                 FocusPersonId="@detail.FocusPersonId"
                 Theme="@theme"
                 Class="demo-tree"
+                ActiveParentSets="@ActiveSets"
+                ActiveParentSetsChanged="OnActiveSetsChanged"
                 Changed="OnChanged" />
 }
 
@@ -67,6 +69,20 @@ else
     private string? error;
     private bool confirmReset;
     private bool resetting;
+
+    // Which family each person is drawn under is only a view choice, so it is remembered here and never saved with the tree.
+    private readonly Dictionary<int, IReadOnlyDictionary<string, string>> activeSetsByTree = [];
+
+    private IReadOnlyDictionary<string, string>? ActiveSets =>
+        detail is not null && activeSetsByTree.TryGetValue(detail.Id, out var sets) ? sets : null;
+
+    private void OnActiveSetsChanged(IReadOnlyDictionary<string, string> sets)
+    {
+        if (detail is not null)
+        {
+            activeSetsByTree[detail.Id] = sets;
+        }
+    }
 
     protected override async Task OnInitializedAsync() => await LoadAsync(preferredId: null);
 

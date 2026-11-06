@@ -32,7 +32,8 @@ MyWebTree does not authenticate anyone and does not know about profile pages, up
 | `MyWebTree.Data.MySql` | MySQL. Register it with `AddMyWebTreeMySql()`. |
 | `MyWebTree.Services` | `IFamilyTreeService` and the Extenso repositories. |
 | `MyWebTree.Components` | The `FamilyTree` Razor component, its JavaScript and CSS. |
-| `MyWebTree.Tests` | xUnit tests for the graph rules and a SQLite round trip. |
+| `MyWebTree.Tests` | xUnit tests for the graph rules, the projection and layout, and a SQLite round trip, including the migration. |
+| `MyWebTree.Components.Tests` | bUnit tests for the component: change events, the active family, and undo and redo. |
 | `MyWebTree.Demo.Blazor` | Blazor Server demo. |
 
 ## How it fits together
@@ -102,7 +103,7 @@ Server=localhost;Database=MyWebTree;User=root;Password=root
 
 Those three strings are SQL Server, PostgreSQL, and MySQL. Each of those providers has its own migrations. SQL Server, PostgreSQL, and MySQL create the tables in the `webtree` schema. SQLite has no schemas, so that provider ignores the warning and creates the same tables without one. The migrations history table is `__MyWebTreeMigrationsHistory`, in `webtree` where the provider has schemas, so MyWebTree can share a database with the host.
 
-Parameters: `People`, `FocusPersonId`, `Changed`, `Editable` (default `true`), `Theme` (`light`, `dark`, `auto`, `bootstrap`), `Lineage` (`Bilateral` by default, or `Patrilineal`), `ShowSiblings` (default `false`), `Orientation` (`Vertical` by default, or `Horizontal`), `AncestryDepth` and `ProgenyDepth` (generations shown above and below the focus person; `4` by default), `MaxGenerations` (the most the toolbar steppers allow; `8` by default), `DepthsChanged`, `ViewChanged`, `Height` (default `720px`), `Class`, `Error`, `HighlightedPersonId`, `OnOpenPerson`, `OpenPersonText`, and `ChooseAvatar`. The toolbar can change any of those after the tree opens. `ViewChanged` receives a `TreeView` (generations, siblings, lineage and orientation) each time, so the host can remember it (for example in local storage) and pass it back through the matching parameters next time. `DepthsChanged` still receives just the two generation counts. Other attributes are passed to the outer element.
+Parameters: `People`, `FocusPersonId`, `Changed`, `Editable` (default `true`), `Theme` (`light`, `dark`, `auto`, `bootstrap`), `Lineage` (`Bilateral` by default, or `Patrilineal`), `ShowSiblings` (default `false`), `Orientation` (`Vertical` by default, or `Horizontal`), `AncestryDepth` and `ProgenyDepth` (generations shown above and below the focus person; `4` by default), `MaxGenerations` (the most the toolbar steppers allow; `8` by default), `DepthsChanged`, `ViewChanged`, `BloodRelativesOnly` (default `false`), `ActiveParentSets` and `ActiveParentSetsChanged` (see [Adopted and foster parents](#adopted-and-foster-parents)), `Height` (default `720px`), `Class`, `Error`, `HighlightedPersonId`, `OnOpenPerson`, `OpenPersonText`, and `ChooseAvatar`. The toolbar can change any of those after the tree opens. `ViewChanged` receives a `TreeView` (generations, siblings, lineage, orientation, and blood relatives only) each time, so the host can remember it (for example in local storage) and pass it back through the matching parameters next time. `DepthsChanged` still receives just the two generation counts. Other attributes are passed to the outer element.
 
 ## Integrating with your own people
 
@@ -130,12 +131,17 @@ Map the host's rows to `PersonData` on the way in. Ids are strings, so a placeho
 | `Added` | Insert `PersonId` and the links on that card. |
 | `Updated` | Update names, dates, places, picture, and notes on `PersonId`. Links did not change. |
 | `Removed` | Delete `PersonId` and their links. Relatives stay. |
-| `Unlinked` | Remove the link between `PersonId` and `OtherPersonId`. Delete neither person. |
-| `Linked` | Add the link between `PersonId` (who was selected) and `OtherPersonId` (who was clicked). `Link` is `Parent`, `Spouse`, or `Child`, from the first person to the second. Delete neither person. |
+| `Unlinked` | Remove the link between `PersonId` and `OtherPersonId`. Delete neither person. `Link` says how the other person related to this one. For a parent link, `ParentSetId` and `Type` name the set the parent was taken out of. A set left with nobody in it is gone from `People`. |
+| `Linked` | Add the link between `PersonId` (who was selected) and `OtherPersonId` (who was clicked). `Link` is `Parent`, `Spouse`, or `Child`, from the first person to the second. Delete neither person. For a parent link that joined a set the child already had, `ParentSetId` and `Type` name that set. |
+| `ParentSetAdded` | A new set of parents was started for `PersonId` (the child) by linking an existing person, `OtherPersonId`, as a parent. `ParentSetId` and `Type` describe the new set. |
+| `ParentSetUpdated` | The type, the date, or the primary flag of the set `ParentSetId` of `PersonId` changed. Read the whole child from `People`: when another set stopped being primary, that set changed too. |
+| `ParentSetRemoved` | The whole set `ParentSetId` was removed from `PersonId`. The parents stay. |
 | `FocusChanged` | Remember the centered person. Nobody's data changed. |
 | `Snapshot` | Undo, redo, or any other full replace. Reconcile the host to `People`. |
 
 `FocusChanged` still raises `Changed`, so the host can store the centered person wherever it likes. The component does not use browser storage.
+
+A host written before parent sets existed has no new case to add. `Added` and `Linked` for a parent still mean "this person now has this parent", and `Unlinked` still means "this link is gone". A switch without the three `ParentSet*` kinds ignores them, and can catch up later: `People` is always the whole graph, parent sets included, so reconciling to it (as for `Snapshot`) picks up anything it skipped.
 
 ```csharp
 private async Task OnChanged(FamilyTreeChange change)
@@ -156,6 +162,11 @@ private async Task OnChanged(FamilyTreeChange change)
             break;
         case FamilyTreeChangeKind.Linked:
             await people.LinkAsync(change.PersonId!, change.OtherPersonId!, change.Link);
+            break;
+        case FamilyTreeChangeKind.ParentSetAdded:
+        case FamilyTreeChangeKind.ParentSetUpdated:
+        case FamilyTreeChangeKind.ParentSetRemoved:
+            await people.SaveParentSetsAsync(change.PersonId!, change.People.Single(person => person.Id == change.PersonId).ParentSets);
             break;
         case FamilyTreeChangeKind.FocusChanged:
             focusId = change.FocusPersonId;
@@ -206,13 +217,14 @@ The component does not read the file itself.
 
 ### Fields the component stores
 
-`PersonData` carries `Id`, `Gender` (`Unknown`, `Male`, `Female`), `FirstName`, `LastName`, `BirthDate`, `DeathDate`, `BirthPlace`, `DeathPlace`, `AvatarUrl`, `Notes`, and the `Parents`, `Spouses`, and `Children` id lists.
+`PersonData` carries `Id`, `Gender` (`Unknown`, `Male`, `Female`), `FirstName`, `LastName`, `BirthDate`, `DeathDate`, `BirthPlace`, `DeathPlace`, `AvatarUrl`, `Notes`, the `Spouses` and `Children` id lists, and the parents: `ParentSets`, with `Parents` kept as the members of the primary set.
 
 Names can be 200 characters. Places can be 200. The picture address can be 500. Notes can be 4000. Anything the host keeps beyond that (biography, occupation, account id, map coordinates) stays on the host's own record. Copy it back onto the person when you handle `Updated`, because the component will not round-trip fields it does not know.
 
 ### Rules
 
-- A person has at most two parents, and at most one father and one mother.
+- A person has at most two parents in any one set, and at most one father and one mother in it. A person can have more than one set.
+- A set is never empty, and a person has exactly one primary set. The primary set is the one that decides `Parents`.
 - A spouse link and a parent link are stored in both directions.
 - Adding a second parent also links those two parents as spouses. Linking an existing person as a second parent does the same.
 - Adding a child of someone with exactly one spouse also links that spouse as the other parent. Linking an existing person as a child does not: that spouse can be linked on their own.
@@ -221,16 +233,63 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 - Add father and Add mother still refuse a second parent of that role. Linking a parent only refuses a third parent, so two fathers or two mothers are allowed.
 - Nobody can be their own ancestor, or married to their own descendant.
 - Delete removes the person from every list and leaves the relatives.
-- Unlink removes one spouse, parent, or child link. From the selected person, the side panel lists spouses, parents, and children.
+- Unlink removes one spouse, parent, or child link. A parent link is one person's membership of one set, so unlinking takes them out of that set only. From the selected person, the side panel lists the families, spouses, and children.
+- No two sets of one person have the same members and type. A person can be in the same set as another with a different type (for example both birth and foster parents of the same child), but not twice with the same one.
+- Nobody can be their own ancestor through any set, adopted or not.
+
+### Adopted and foster parents
+
+A person's parents are one or more **sets**: the one or two people who parented them in one context. Each set has a `ParentageType` (`Birth`, `Adopted`, or `Foster`), an optional date (of the adoption or placement), and a flag saying whether it is the primary set.
+
+```csharp
+var kim = new PersonData
+{
+    Id = "kim",
+    FirstName = "Kim",
+    ParentSets =
+    [
+        new ParentSetData { Id = "kim-birth", Type = ParentageType.Birth, ParentIds = ["bob", "beth"] },
+        new ParentSetData { Id = "kim-adopted", Type = ParentageType.Adopted, ParentIds = ["alan", "amy"], Date = new PartialDate(1987) },
+    ],
+};
+```
+
+**Compatibility.** A host that only fills `Parents` and `Children` works exactly as before. The list is read as one primary birth set, nothing new is drawn, and `Changed` carries the same kinds. `Parents` is always the members of the primary set, and `Children` always lists a child once for every set they are in. The component and `FamilyGraphEditor` return people in this normalized shape, with `ParentSets` filled in.
+
+**Which set is primary.** A set flagged `IsPrimary` wins. When none is, the primary set is the first adopted set, then the first birth set, then the first foster set, in the order they are listed. Changing the primary set changes which parents `Parents` reports. Nothing else is deleted.
+
+**What is drawn.** The chart can only draw one person under one set of parents. Each person is drawn under their *active* set, which is their primary set unless the user chose another. A set that is not active is not expanded. When the chart includes those parents, the person appears under them as a *stub*: one card with no ancestry or descendants of its own, a **Switch to this family** button, and **See also** when the person is also drawn in full elsewhere in the chart.
+
+- A child whose link is not a birth link has a small **A** (adopted) or **F** (foster) badge, with the type as its accessible name.
+- The line between a child and their parents is solid for birth, dashed for adopted, and dotted for foster. A line to an Add father or Add mother card is a faint solid line, so it cannot be mistaken for an adopted link. Colour is never the only cue.
+- A person with more than one set has an **N families** chip. It opens a list of the sets (type, parents, date) with the active one checked. Choosing one redraws that branch in place.
+- The side panel lists each set with its type (editable), date (editable), and members, plus **Show in tree**, **Make primary**, and **Remove** when `Editable`.
+- Add father and Add mother ask whether to add to a family that has room or start a new one, and what type the new one is. Link parent asks the same. A person with no parents yet only chooses the type.
+- `Editable="false"` hides every edit but still lets people switch the active set, because that is only a view.
+
+**The active set is view state.** Switching it does not raise `Changed`, because nobody's data changed. Pass `ActiveParentSets` (person id to set id) to start from a remembered choice, and listen to `ActiveParentSetsChanged` to remember it. It receives the whole map each time, the same way `ViewChanged` works. A missing or out-of-date entry means the primary set. Choosing the primary set removes the entry.
+
+```razor
+<FamilyTree People="people"
+            ActiveParentSets="activeSets"
+            ActiveParentSetsChanged="sets => activeSets = sets"
+            Changed="OnChanged" />
+```
+
+**Blood relatives only.** `BloodRelativesOnly` hides adopted and foster links, and anyone who can only be reached through them. Each person is drawn under a birth set, or under nobody. The toolbar shows the same switch once the tree has an adopted or foster link.
+
+**Editing in code.** `FamilyGraphEditor` has `AddParentSet`, `SetParentSetType`, `SetPrimaryParentSet`, `SetParentSetDate`, and `RemoveParentSet`. `Link`, `Unlink`, and `AddRelative` take an optional set to join or leave. `TreeProjection.Build` turns the graph into the nodes the layout draws, and is pure.
+
+**Persistence.** `IFamilyTreeService` stores the sets in two tables, `ParentSets` and `ParentSetMembers`. The migration for every provider turns each existing parent row into one primary birth set, then removes those rows from `Relationships`, which holds spouse links only. `SaveAsync` keeps the id of a set that is still there, so a host that remembers `ActiveParentSets` keeps working across saves. Down migrations put each primary set back as parent rows.
 
 ## Behaviour
 
 - Click a card to select it and rebuild the tree around them. That is what shows Add father, Add mother, Add spouse, and Add child. Center does the same.
 - Link locks that person. The next card, or a search result, is the other end of the link. Confirm writes it. Cancel, or the same Link button again, unlocks the tree.
 - Search matches name, lifespan, birth place, and death place.
-- Placeholder cards are dashed. Choosing one opens the add form for that relative.
+- Placeholder cards are dashed. Choosing one opens the add form for that relative. A stub card is a second drawing of someone who is shown elsewhere, and is not a placeholder.
 - Undo keeps the last 40 edits. Undo and redo raise `Changed` with kind `Snapshot`.
-- Depth steppers run from 0 to 8 generations. They only change the drawing, not the data, so they do not raise `Changed`.
+- Depth steppers run from 0 to 8 generations. They only change the drawing, not the data, so they do not raise `Changed`. Neither does choosing another family for someone.
 - `IFamilyTreeService.SaveAsync` writes the whole graph: it replaces relationships and deletes stored people who are not in the payload. That is the right save for a tree MyWebTree owns. It is the wrong save for a host whose people have other rows pointing at them.
 
 ## Demo

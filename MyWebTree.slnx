@@ -16,4 +16,5 @@
   <Project Path="MyWebTree.Services/MyWebTree.Services.csproj" />
   <Project Path="MyWebTree.Components/MyWebTree.Components.csproj" />
   <Project Path="MyWebTree.Tests/MyWebTree.Tests.csproj" />
+  <Project Path="MyWebTree.Components.Tests/MyWebTree.Components.Tests.csproj" />
 </Solution>

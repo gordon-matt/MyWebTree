@@ -54,6 +54,10 @@
                                 </select>
                             </label>
                         }
+                        @if (editor.Kind is RelativeKind.Father or RelativeKind.Mother && editor.RelatesToId is not null && Person(editor.RelatesToId) is { } editedChild)
+                        {
+                            @FamilyChooser(editedChild, editor.Kind == RelativeKind.Father ? Gender.Male : Gender.Female, null)
+                        }
                         @if (AskOtherParent)
                         {
                             <label>
@@ -134,22 +138,111 @@
                             </div>
                         </div>
                     }
+                    @if (person.ParentSets.Count > 0)
+                    {
+                        <div class="mwt-sets">
+                            <p class="mwt-kicker">@(person.ParentSets.Count > 1 ? "Families" : "Parents")</p>
+                            @foreach (var set in person.ParentSets)
+                            {
+                                bool isActive = set.Id == ParentSetRules.ActiveOf(person, activeSets)?.Id;
+                                <div class="mwt-set @(isActive ? "mwt-set-active" : null)">
+                                    <div class="mwt-set-head">
+                                        @if (Editable)
+                                        {
+                                            <select class="mwt-set-type" aria-label="Type of family" disabled="@saving" value="@set.Type" @onchange="e => ChangeSetTypeAsync(person.Id, set.Id, e)">
+                                                <option value="@ParentageType.Birth">Birth</option>
+                                                <option value="@ParentageType.Adopted">Adopted</option>
+                                                <option value="@ParentageType.Foster">Foster</option>
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <strong class="mwt-set-type">@TypeWord(set.Type)</strong>
+                                        }
+                                        @if (set.IsPrimary)
+                                        {
+                                            <span class="mwt-tag" title="Drawn by default">Primary</span>
+                                        }
+                                        @if (isActive && person.ParentSets.Count > 1)
+                                        {
+                                            <span class="mwt-tag mwt-tag-active" title="Drawn in the tree now">Showing</span>
+                                        }
+                                    </div>
+                                    @foreach (string parentId in set.ParentIds)
+                                    {
+                                        <div class="mwt-rel">
+                                            <span>@Person(parentId)?.DisplayName</span>
+                                            @if (Editable)
+                                            {
+                                                <button type="button" class="mwt-button" disabled="@saving" @onclick="() => AskUnlink(parentId, set.Id)">Unlink</button>
+                                            }
+                                        </div>
+                                        @if (unlinkTarget == new UnlinkTarget(parentId, set.Id))
+                                        {
+                                            <div class="mwt-confirm">
+                                                <p>Unlink @person.DisplayName and @Person(parentId)?.DisplayName? Both stay in the tree.</p>
+                                                <div class="mwt-form-actions">
+                                                    <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, parentId, set.Id)">Unlink</button>
+                                                    <button type="button" class="mwt-button" @onclick="() => unlinkTarget = null">Keep</button>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    @if (Editable)
+                                    {
+                                        <label class="mwt-set-date">
+                                            Date
+                                            <input placeholder="yyyy-mm-dd" maxlength="10" disabled="@saving" value="@set.Date" @onchange="e => ChangeSetDateAsync(person.Id, set.Id, e)" />
+                                        </label>
+                                    }
+                                    else if (set.Date is { } placed)
+                                    {
+                                        <p class="mwt-meta">@placed</p>
+                                    }
+                                    <div class="mwt-set-actions">
+                                        @if (!isActive)
+                                        {
+                                            <button type="button" class="mwt-button" @onclick="() => SwitchSetAsync(person.Id, set.Id)">Show in tree</button>
+                                        }
+                                        @if (Editable && !set.IsPrimary)
+                                        {
+                                            <button type="button" class="mwt-button" disabled="@saving" @onclick="() => MakePrimaryAsync(person.Id, set.Id)">Make primary</button>
+                                        }
+                                        @if (Editable)
+                                        {
+                                            <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="() => AskRemoveSet(set.Id)">Remove</button>
+                                        }
+                                    </div>
+                                    @if (Editable && removeSetId == set.Id)
+                                    {
+                                        <div class="mwt-confirm">
+                                            <p>Remove this @TypeWord(set.Type).ToLowerInvariant() family from @person.DisplayName? The parents stay in the tree.</p>
+                                            <div class="mwt-form-actions">
+                                                <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="() => RemoveSetAsync(person.Id, set.Id)">Remove</button>
+                                                <button type="button" class="mwt-button" @onclick="() => removeSetId = null">Keep</button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
                     @if (Editable)
                     {
                         <div class="mwt-rel-list">
-                            @foreach (var (label, otherId) in Relatives(person))
+                            @foreach (var row in Relatives(person))
                             {
                                 <div class="mwt-rel">
-                                    <span>@label · @Person(otherId)?.DisplayName</span>
-                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => AskUnlink(otherId)">Unlink</button>
+                                    <span>@row.Label · @Person(row.OtherId)?.DisplayName</span>
+                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => AskUnlink(row.OtherId, row.SetId)">Unlink</button>
                                 </div>
-                                @if (unlinkOtherId == otherId)
+                                @if (unlinkTarget == new UnlinkTarget(row.OtherId, row.SetId))
                                 {
                                     <div class="mwt-confirm">
-                                        <p>Unlink @person.DisplayName and @Person(otherId)?.DisplayName? Both stay in the tree.</p>
+                                        <p>Unlink @person.DisplayName and @Person(row.OtherId)?.DisplayName? Both stay in the tree.</p>
                                         <div class="mwt-form-actions">
-                                            <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, otherId)">Unlink</button>
-                                            <button type="button" class="mwt-button" @onclick="() => unlinkOtherId = null">Keep</button>
+                                            <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, row.OtherId, row.SetId)">Unlink</button>
+                                            <button type="button" class="mwt-button" @onclick="() => unlinkTarget = null">Keep</button>
                                         </div>
                                     </div>
                                 }
@@ -179,6 +272,12 @@
                                 {
                                     <div class="mwt-confirm">
                                         <p>@LinkConfirmText</p>
+                                        @if (PendingParentLink is { } parentLink)
+                                        {
+                                            <div class="mwt-form">
+                                                @FamilyChooser(parentLink.Child, Gender.Unknown, parentLink.Parent.Id)
+                                            </div>
+                                        }
                                         <div class="mwt-form-actions">
                                             <button type="button" class="mwt-button mwt-primary" disabled="@saving" @onclick="ConfirmLinkAsync">Link</button>
                                             <button type="button" class="mwt-button" @onclick="CancelLinkTarget">Choose another</button>
@@ -226,6 +325,10 @@
                     <button type="button" class="mwt-button @(lineage == LineageScope.Bilateral ? "mwt-pressed" : null)" aria-pressed="@(lineage == LineageScope.Bilateral)" @onclick="() => SetLineage(LineageScope.Bilateral)">Both sides</button>
                     <button type="button" class="mwt-button @(lineage == LineageScope.Patrilineal ? "mwt-pressed" : null)" aria-pressed="@(lineage == LineageScope.Patrilineal)" @onclick="() => SetLineage(LineageScope.Patrilineal)">Father's line</button>
                 </span>
+                @if (HasNonBirthSets || bloodOnly)
+                {
+                    <button type="button" class="mwt-button @(bloodOnly ? "mwt-pressed" : null)" title="Hide adopted and foster links, and anyone only reached through them" aria-pressed="@(bloodOnly ? "true" : "false")" @onclick="ToggleBloodOnly">Blood relatives</button>
+                }
                 <button type="button" class="mwt-button" title="Switch between vertical and horizontal" @onclick="ToggleOrientation">
                     @(orientation == TreeOrientation.Vertical ? "Vertical" : "Horizontal")
                 </button>
@@ -257,12 +360,13 @@
                         <svg class="mwt-links" width="@Px(layout.Width)" height="@Px(layout.Height)">
                             @foreach (var link in layout.Links)
                             {
-                                <line x1="@Px(link.X1)" y1="@Px(link.Y1)" x2="@Px(link.X2)" y2="@Px(link.Y2)" class="@(link.Dashed ? "mwt-dashed" : null)" />
+                                <line x1="@Px(link.X1)" y1="@Px(link.Y1)" x2="@Px(link.X2)" y2="@Px(link.Y2)" class="@LinkClass(link)" />
                             }
                         </svg>
                         @foreach (var card in layout.Cards)
                         {
-                            var person = Person(card.Id);
+                            var person = Person(RealId(card));
+                            string? badge = BadgeLetter(card);
                             <button type="button" class="@CardClass(card)" style="@Place(card)" title="@CardTitle(card, person)"
                                     @onpointerdown:stopPropagation="true" @onclick="() => SelectCard(card)" @ondblclick="() => FocusCardAsync(card)" @ondblclick:stopPropagation="true">
                                 <span class="mwt-avatar">
@@ -290,7 +394,39 @@
                                         <span class="mwt-card-kin">@label</span>
                                     }
                                 </span>
+                                @if (badge is not null)
+                                {
+                                    <span class="mwt-badge @(card.ParentType == ParentageType.Adopted ? "mwt-badge-adopted" : "mwt-badge-foster")" title="@TypeWord(card.ParentType)"><span aria-hidden="true">@badge</span><span class="mwt-sr">@TypeWord(card.ParentType)</span></span>
+                                }
                             </button>
+                            @if (card.IsStub)
+                            {
+                                <span class="mwt-stub-actions" style="@Place(card)" @onpointerdown:stopPropagation="true">
+                                    <button type="button" class="mwt-chip" title="Show @person?.DisplayName under this family" @onclick="() => SwitchSetAsync(card.PersonId!, card.ParentSetId!)">Switch to this family</button>
+                                    @if (card.SeeAlso)
+                                    {
+                                        <button type="button" class="mwt-chip" title="Go to @person?.DisplayName where they are shown in full" @onclick="() => SeeAlsoAsync(card)">See also</button>
+                                    }
+                                </span>
+                            }
+                            else if (card.ParentSetCount > 1 && person is not null)
+                            {
+                                <button type="button" class="mwt-chip mwt-families" style="@Place(card)" aria-haspopup="true" aria-expanded="@(familiesOpenFor == person.Id ? "true" : "false")"
+                                        title="@person.DisplayName has @card.ParentSetCount families" @onpointerdown:stopPropagation="true" @onclick="() => ToggleFamilies(person.Id)">@card.ParentSetCount families</button>
+                                @if (familiesOpenFor == person.Id)
+                                {
+                                    <div class="mwt-popover" role="menu" aria-label="Families of @person.DisplayName" style="@Place(card)" @onpointerdown:stopPropagation="true">
+                                        @foreach (var set in person.ParentSets)
+                                        {
+                                            bool current = set.Id == card.ParentSetId;
+                                            <button type="button" role="menuitemradio" aria-checked="@(current ? "true" : "false")" class="mwt-popover-item @(current ? "mwt-popover-current" : null)" @onclick="() => SwitchSetAsync(person.Id, set.Id)">
+                                                <span class="mwt-check" aria-hidden="true">@(current ? "✓" : "")</span>
+                                                <span>@SetSummary(set)</span>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            }
                         }
                     </div>
                 }
@@ -306,3 +442,40 @@
         </div>
     </div>
 </div>
+
+@code {
+    /// <summary>
+    /// Which family a new parent joins. A child with room in an existing family can add to it or start another;
+    /// a child with no family only chooses what kind of parent this is. Both write into <see cref="choice"/>.
+    /// </summary>
+    private RenderFragment FamilyChooser(PersonData child, Gender role, string? excludeParentId) =>
+        @<text>
+            @{
+                var open = OpenSets(child, role, excludeParentId);
+            }
+            @if (open.Count > 0 || child.ParentSets.Count > 0)
+            {
+                <label>
+                    Family
+                    <select @bind="choice.Value">
+                        @foreach (var set in open)
+                        {
+                            <option value="@set.Id">Add to the family: @SetSummary(set)</option>
+                        }
+                        <option value="@NewFamily">A new family</option>
+                    </select>
+                </label>
+            }
+            @if (choice.Value == NewFamily)
+            {
+                <label>
+                    @(child.ParentSets.Count == 0 ? "Parent type" : "Type of the new family")
+                    <select @bind="choice.Type">
+                        <option value="@ParentageType.Birth">Birth</option>
+                        <option value="@ParentageType.Adopted">Adopted</option>
+                        <option value="@ParentageType.Foster">Foster</option>
+                    </select>
+                </label>
+            }
+        </text>;
+}

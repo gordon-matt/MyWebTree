@@ -29,6 +29,17 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private string? formError;
     private string query = "";
     private const int DefaultDepth = 4;
+    private const string NewFamily = "new";
+
+    // The people as the component reasons about them: a legacy Parents list is read as one primary birth set.
+    private IReadOnlyList<PersonData> graph = [];
+    private Dictionary<string, string> activeSets = new(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, string>? activeSetsFromHost;
+    private bool bloodOnly;
+    private bool bloodOnlyFromHost;
+    private string? familiesOpenFor;
+    private string? removeSetId;
+    private ParentChoice choice = new();
 
     private int ancestry = DefaultDepth;
     private int progeny = DefaultDepth;
@@ -47,7 +58,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private bool selectionReady;
     private bool applyingHistory;
     private bool confirmDelete;
-    private string? unlinkOtherId;
+    private UnlinkTarget? unlinkTarget;
     private LinkKind? pendingLink;
     private string? linkAnchorId;
     private string? linkTargetId;
@@ -135,6 +146,28 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     public EventCallback<TreeView> ViewChanged { get; set; }
 
     /// <summary>
+    /// The set of parents drawn for each person, as person id to set id. A person with no entry, or a stale one,
+    /// is drawn under their primary set. Choosing another set on the chart changes only this view, never
+    /// <see cref="People"/>, and is reported through <see cref="ActiveParentSetsChanged"/>.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyDictionary<string, string>? ActiveParentSets { get; set; }
+
+    /// <summary>
+    /// Raised with the whole person id to set id map when the user picks another family for someone.
+    /// <see cref="Changed"/> is not raised for this, because nobody's data changed.
+    /// </summary>
+    [Parameter]
+    public EventCallback<IReadOnlyDictionary<string, string>> ActiveParentSetsChanged { get; set; }
+
+    /// <summary>
+    /// Hide adopted and foster links, and everyone who can only be reached through them. The toolbar offers
+    /// the same switch once the tree has such a link, and <see cref="ViewChanged"/> reports it.
+    /// </summary>
+    [Parameter]
+    public bool BloodRelativesOnly { get; set; }
+
+    /// <summary>
     /// Gets or sets the height.
     /// </summary>
     [Parameter]
@@ -179,11 +212,11 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private PersonData? Selected => People.FirstOrDefault(person => person.Id == selectedId);
+    private PersonData? Selected => graph.FirstOrDefault(person => person.Id == selectedId);
 
     private List<PersonData> Matches => string.IsNullOrWhiteSpace(query)
         ? []
-        : People.Where(person =>
+        : graph.Where(person =>
         {
             string term = query.Trim();
             return
@@ -204,10 +237,10 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
                 return [];
             }
 
-            var anchor = People.FirstOrDefault(person => person.Id == editor.RelatesToId);
+            var anchor = graph.FirstOrDefault(person => person.Id == editor.RelatesToId);
             return anchor is null
                 ? []
-                : anchor.Spouses.Select(id => People.FirstOrDefault(person => person.Id == id)).OfType<PersonData>().ToList();
+                : anchor.Spouses.Select(id => graph.FirstOrDefault(person => person.Id == id)).OfType<PersonData>().ToList();
         }
     }
 
@@ -242,6 +275,23 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     /// <inheritdoc/>
     protected override void OnParametersSet()
     {
+        graph = ParentSetRules.Normalize(People);
+
+        // Same rule as the toolbar choices below: a map from the host replaces ours only when the host changes it.
+        if (!ReferenceEquals(ActiveParentSets, activeSetsFromHost))
+        {
+            activeSetsFromHost = ActiveParentSets;
+            activeSets = ActiveParentSets is null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : new Dictionary<string, string>(ActiveParentSets, StringComparer.Ordinal);
+        }
+
+        if (BloodRelativesOnly != bloodOnlyFromHost)
+        {
+            bloodOnlyFromHost = BloodRelativesOnly;
+            bloodOnly = BloodRelativesOnly;
+        }
+
         if (Lineage != lineageFromHost)
         {
             lineageFromHost = Lineage;
@@ -305,7 +355,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        var box = await module.InvokeAsync<ViewportSize>("size", viewport);
+        var box = await module.InvokeAsync<ViewportSize?>("size", viewport) ?? new ViewportSize();
         if (box.Width < 10 || box.Height < 10)
         {
             if (fitAttempts++ < 10)
@@ -368,7 +418,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private void Rebuild()
     {
-        layout = TreeLayoutCalculator.Calculate(People, new TreeLayoutOptions
+        layout = TreeLayoutCalculator.Calculate(graph, new TreeLayoutOptions
         {
             FocusId = FocusPersonId,
             AncestryDepth = ancestry,
@@ -377,26 +427,28 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             Lineage = lineage,
             ShowPlaceholders = Editable,
             Orientation = orientation,
+            ActiveParentSets = activeSets,
+            BloodRelativesOnly = bloodOnly,
         });
     }
 
     private void TrackSelection()
     {
-        var incoming = People.Select(person => person.Id).ToHashSet(StringComparer.Ordinal);
+        var incoming = graph.Select(person => person.Id).ToHashSet(StringComparer.Ordinal);
         if (!selectionReady)
         {
             selectedId ??= FocusPersonId is not null && incoming.Contains(FocusPersonId)
                 ? FocusPersonId
-                : People.FirstOrDefault()?.Id;
+                : graph.FirstOrDefault()?.Id;
             knownIds.Clear();
             knownIds.UnionWith(incoming);
-            selectionReady = People.Count > 0;
+            selectionReady = graph.Count > 0;
             return;
         }
 
         if (selectedId is not null && !incoming.Contains(selectedId) && !selectedId.StartsWith('+'))
         {
-            selectedId = People.FirstOrDefault(person => !knownIds.Contains(person.Id))?.Id
+            selectedId = graph.FirstOrDefault(person => !knownIds.Contains(person.Id))?.Id
                 ?? (FocusPersonId is not null && incoming.Contains(FocusPersonId) ? FocusPersonId : null);
         }
 
@@ -413,19 +465,32 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             CancelLinkTarget();
         }
 
-        if (unlinkOtherId is not null && (selectedId is null || !incoming.Contains(unlinkOtherId)))
+        if (unlinkTarget is not null && (selectedId is null || !incoming.Contains(unlinkTarget.OtherId)))
         {
-            unlinkOtherId = null;
+            unlinkTarget = null;
+        }
+
+        if (removeSetId is not null && Selected?.ParentSets.All(set => set.Id != removeSetId) != false)
+        {
+            removeSetId = null;
+        }
+
+        if (familiesOpenFor is not null && !incoming.Contains(familiesOpenFor))
+        {
+            familiesOpenFor = null;
         }
     }
 
-    private PersonData? Person(string id) => People.FirstOrDefault(person => person.Id == id);
+    private PersonData? Person(string id) => graph.FirstOrDefault(person => person.Id == id);
 
     private string? Kinship(string id) => layout.Kinship.TryGetValue(id, out string? label) ? label : null;
 
+    /// <summary>The person a card stands for. A stub's own id is not a person, so it answers with the real one.</summary>
+    private static string RealId(TreeCard card) => card.PersonId ?? card.Id;
+
     private string CardClass(TreeCard card)
     {
-        var gender = Person(card.Id)?.Gender ?? (card.Placeholder switch
+        var gender = Person(RealId(card))?.Gender ?? (card.Placeholder switch
         {
             PlaceholderKind.Father => Gender.Male,
             PlaceholderKind.Mother => Gender.Female,
@@ -439,18 +504,56 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             _ => "mwt-unknown",
         };
 
-        string focus = card.Id == layout.FocusId ? " mwt-focus" : "";
-        string selected = card.Id == selectedId ? " mwt-selected" : "";
-        string marked = !card.IsPlaceholder && card.Id == HighlightedPersonId ? " mwt-marked" : "";
+        // A stub is a second drawing of someone, so only the real card carries the focus and selection marks.
+        string focus = !card.IsStub && card.Id == layout.FocusId ? " mwt-focus" : "";
+        string selected = !card.IsStub && card.Id == selectedId ? " mwt-selected" : "";
+        string marked = !card.IsPlaceholder && !card.IsStub && card.Id == HighlightedPersonId ? " mwt-marked" : "";
         string placeholder = card.IsPlaceholder ? " mwt-placeholder" : "";
-        string anchor = pendingLink is not null && card.Id == linkAnchorId ? " mwt-link-anchor" : "";
-        string target = confirmLink && card.Id == linkTargetId ? " mwt-link-target" : "";
-        return "mwt-card " + tone + focus + selected + marked + placeholder + anchor + target;
+        string stub = card.IsStub ? " mwt-stub" : "";
+        string anchor = pendingLink is not null && RealId(card) == linkAnchorId ? " mwt-link-anchor" : "";
+        string target = confirmLink && RealId(card) == linkTargetId ? " mwt-link-target" : "";
+        return "mwt-card " + tone + focus + selected + marked + placeholder + stub + anchor + target;
+    }
+
+    /// <summary>The badge text for a link that is not a birth link, or null when there is nothing to show.</summary>
+    private static string? BadgeLetter(TreeCard card) =>
+        card.ParentSetId is null ? null : card.ParentType switch
+        {
+            ParentageType.Adopted => "A",
+            ParentageType.Foster => "F",
+            _ => null,
+        };
+
+    private static string TypeWord(ParentageType type) => type switch
+    {
+        ParentageType.Adopted => "Adopted",
+        ParentageType.Foster => "Foster",
+        _ => "Birth",
+    };
+
+    private static string LinkClass(TreeLink link)
+    {
+        if (link.Dashed)
+        {
+            return "mwt-ghost";
+        }
+
+        return link.Type switch
+        {
+            ParentageType.Adopted => "mwt-adopted",
+            ParentageType.Foster => "mwt-foster",
+            _ => "",
+        };
     }
 
     private string CardTitle(TreeCard card, PersonData? person)
     {
-        if (pendingLink is not null && !card.IsPlaceholder && card.Id != linkAnchorId && person is not null)
+        if (card.IsStub && person is not null && pendingLink is null)
+        {
+            return person.DisplayName + " (" + TypeWord(card.ParentType).ToLowerInvariant() + " child here" + (card.SeeAlso ? ", also shown elsewhere" : "") + ")";
+        }
+
+        if (pendingLink is not null && !card.IsPlaceholder && RealId(card) != linkAnchorId && person is not null)
         {
             string name = Anchor?.DisplayName ?? "the selected person";
             return pendingLink switch
@@ -490,15 +593,17 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private Task SelectCard(TreeCard card)
     {
+        familiesOpenFor = null;
         if (pendingLink is not null)
         {
-            ChooseLinkTarget(card.Id, card.IsPlaceholder);
+            ChooseLinkTarget(RealId(card), card.IsPlaceholder);
             return Task.CompletedTask;
         }
 
-        selectedId = card.Id;
+        selectedId = RealId(card);
         confirmDelete = false;
-        unlinkOtherId = null;
+        unlinkTarget = null;
+        removeSetId = null;
         formError = null;
         if (card.IsPlaceholder)
         {
@@ -507,11 +612,13 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
 
         editor = null;
-        return FocusAsync(card.Id);
+
+        // A stub only selects: the panel then shows the person's families, and the card's own buttons do the rest.
+        return card.IsStub ? Task.CompletedTask : FocusAsync(card.Id);
     }
 
     private Task FocusCardAsync(TreeCard card) =>
-        pendingLink is not null || card.IsPlaceholder ? Task.CompletedTask : FocusAsync(card.Id);
+        pendingLink is not null || card.IsPlaceholder ? Task.CompletedTask : FocusAsync(RealId(card));
 
     private void AddFirst() => editor = new EditorState();
 
@@ -524,15 +631,15 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         CancelLink();
         confirmDelete = false;
-        unlinkOtherId = null;
+        unlinkTarget = null;
         editor = EditorState.From(person);
     }
 
     private void OpenAdd(PlaceholderKind kind, string? relatesTo, Gender? childGender = null)
     {
         CancelLink();
-        unlinkOtherId = null;
-        var anchor = relatesTo is null ? null : People.FirstOrDefault(person => person.Id == relatesTo);
+        unlinkTarget = null;
+        var anchor = relatesTo is null ? null : graph.FirstOrDefault(person => person.Id == relatesTo);
         var relative = kind switch
         {
             PlaceholderKind.Father => RelativeKind.Father,
@@ -559,11 +666,16 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
                 _ => Gender.Unknown,
             },
             OtherParentId = kind == PlaceholderKind.Child
-                ? anchor?.Spouses.FirstOrDefault(id => People.Any(person => person.Id == id))
+                ? anchor?.Spouses.FirstOrDefault(id => graph.Any(person => person.Id == id))
                 : null,
         };
         formError = null;
         confirmDelete = false;
+        removeSetId = null;
+        if (anchor is not null && relative is RelativeKind.Father or RelativeKind.Mother)
+        {
+            choice = DefaultChoice(anchor, relative == RelativeKind.Father ? Gender.Male : Gender.Female, null);
+        }
     }
 
     private void CloseEditor()
@@ -576,37 +688,13 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
     }
 
-    private bool CanAdd(RelativeKind kind)
-    {
-        if (!Editable || Selected is not { } person)
-        {
-            return false;
-        }
+    // A person who already has two parents can still be given a father or mother in a new family, so no kind is ruled out.
+    private bool CanAdd(RelativeKind kind) => Editable && Selected is not null;
 
-        return kind switch
-        {
-            RelativeKind.Father => person.Parents.Count < 2 && !HasParent(person, Gender.Male),
-            RelativeKind.Mother => person.Parents.Count < 2 && !HasParent(person, Gender.Female),
-            _ => true,
-        };
-    }
-
-    private bool HasParent(PersonData person, Gender gender) =>
-        person.Parents.Any(id => People.FirstOrDefault(parent => parent.Id == id)?.Gender == gender);
-
-    private bool CanLink(LinkKind kind)
-    {
-        if (!Editable || Selected is not { } person || People.Count < 2)
-        {
-            return false;
-        }
-
-        return kind != LinkKind.Parent || person.Parents.Count < 2;
-    }
+    private bool CanLink(LinkKind kind) => Editable && Selected is not null && graph.Count >= 2;
 
     private string LinkButtonTitle(LinkKind kind) => kind switch
     {
-        LinkKind.Parent when Selected is { Parents.Count: >= 2 } => "This person already has two parents.",
         LinkKind.Parent => "Link an existing person as a parent.",
         LinkKind.Spouse => "Link an existing person as a spouse.",
         LinkKind.Child => "Link an existing person as a child.",
@@ -660,7 +748,10 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         var child = pendingLink == LinkKind.Child ? other : anchor;
         var parent = pendingLink == LinkKind.Child ? anchor : other;
-        string? existingId = child.Parents.FirstOrDefault(id => id != parent.Id);
+
+        // The new parent joins the chosen family, and only the other member of that family becomes a spouse.
+        var joined = choice.Value == NewFamily ? null : child.ParentSets.FirstOrDefault(set => set.Id == choice.Value);
+        string? existingId = joined?.ParentIds.FirstOrDefault(id => id != parent.Id);
         if (existingId is null || parent.Spouses.Contains(existingId))
         {
             return null;
@@ -695,7 +786,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         editor = null;
         confirmDelete = false;
-        unlinkOtherId = null;
+        unlinkTarget = null;
         formError = null;
         pendingLink = kind;
         linkAnchorId = Selected.Id;
@@ -705,7 +796,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private void ChooseLinkTarget(string id, bool placeholder)
     {
-        if (placeholder || id == linkAnchorId || People.All(person => person.Id != id))
+        if (placeholder || id == linkAnchorId || graph.All(person => person.Id != id))
         {
             return;
         }
@@ -713,9 +804,22 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         linkTargetId = id;
         confirmLink = true;
         confirmDelete = false;
-        unlinkOtherId = null;
+        unlinkTarget = null;
         formError = null;
+
+        // A parent link asks which family the parent joins, so the default is worked out once the other end is known.
+        if (pendingLink is LinkKind.Parent or LinkKind.Child && Anchor is { } anchor && Person(id) is { } other)
+        {
+            var (child, parent) = pendingLink == LinkKind.Parent ? (anchor, other) : (other, anchor);
+            choice = DefaultChoice(child, Gender.Unknown, parent.Id);
+        }
     }
+
+    /// <summary>The child and the parent a pending parent or child link would join, or null for any other link.</summary>
+    private (PersonData Child, PersonData Parent)? PendingParentLink =>
+        pendingLink is LinkKind.Parent or LinkKind.Child && Anchor is { } anchor && LinkTarget is { } other
+            ? pendingLink == LinkKind.Parent ? (anchor, other) : (other, anchor)
+            : null;
 
     private void CancelLink()
     {
@@ -734,34 +838,77 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private void AskDelete()
     {
         CancelLink();
-        unlinkOtherId = null;
+        unlinkTarget = null;
         confirmDelete = true;
     }
 
-    private void AskUnlink(string otherId)
+    private void AskUnlink(string otherId, string? setId = null)
     {
         CancelLink();
         confirmDelete = false;
-        unlinkOtherId = otherId;
+        removeSetId = null;
+        unlinkTarget = new UnlinkTarget(otherId, setId);
     }
 
-    private static IEnumerable<(string Label, string Id)> Relatives(PersonData person)
+    /// <summary>
+    /// The side panel's list of spouses and children. Parents are listed by family instead. A child the person
+    /// parents in more than one family gets one row for each, so an unlink says which link it means.
+    /// </summary>
+    private IEnumerable<RelativeRow> Relatives(PersonData person)
     {
         foreach (string id in person.Spouses)
         {
-            yield return ("Spouse", id);
-        }
-
-        foreach (string id in person.Parents)
-        {
-            yield return ("Parent", id);
+            yield return new RelativeRow("Spouse", id, null);
         }
 
         foreach (string id in person.Children)
         {
-            yield return ("Child", id);
+            var holding = Person(id)?.ParentSets.Where(set => set.ParentIds.Contains(person.Id)).ToList() ?? [];
+            if (holding.Count == 0)
+            {
+                yield return new RelativeRow("Child", id, null);
+                continue;
+            }
+
+            foreach (var set in holding)
+            {
+                string label = Person(id)!.ParentSets.Count > 1 ? "Child (" + TypeWord(set.Type).ToLowerInvariant() + ")" : "Child";
+                yield return new RelativeRow(label, id, set.Id);
+            }
         }
     }
+
+    private string SetNames(ParentSetData set) =>
+        string.Join(" & ", set.ParentIds.Select(id => Person(id)?.DisplayName).Where(name => name is not null));
+
+    /// <summary>One line describing a family: type, who is in it, and the date when there is one.</summary>
+    private string SetSummary(ParentSetData set) =>
+        TypeWord(set.Type) + " · " + SetNames(set) + (set.Date is { } date ? " · " + date : "");
+
+    private static bool HasRoom(ParentSetData set, Gender role, Func<string, Gender?> genderOf, string? excludeParentId) =>
+        set.ParentIds.Count < 2
+        && (excludeParentId is null || !set.ParentIds.Contains(excludeParentId))
+        && (role == Gender.Unknown || set.ParentIds.All(id => genderOf(id) != role));
+
+    /// <summary>The families of <paramref name="child"/> a new parent could join.</summary>
+    private List<ParentSetData> OpenSets(PersonData child, Gender role, string? excludeParentId) =>
+        child.ParentSets.Where(set => HasRoom(set, role, id => Person(id)?.Gender, excludeParentId)).ToList();
+
+    /// <summary>
+    /// Joins the family the chart is showing when it has room, then any other with room, and otherwise starts a new
+    /// one. A child with no family yet starts a birth family.
+    /// </summary>
+    private ParentChoice DefaultChoice(PersonData child, Gender role, string? excludeParentId)
+    {
+        var open = OpenSets(child, role, excludeParentId);
+        string? active = ParentSetRules.ActiveOf(child, activeSets)?.Id;
+        var pick = open.FirstOrDefault(set => set.Id == active) ?? open.FirstOrDefault();
+        return new ParentChoice { Value = pick?.Id ?? NewFamily, Type = ParentageType.Birth };
+    }
+
+    private ParentSetTarget ToTarget(ParentChoice pick) => pick.Value == NewFamily
+        ? new ParentSetTarget { CreateNew = true, Type = pick.Type }
+        : new ParentSetTarget { ParentSetId = pick.Value };
 
     private async Task SaveEditorAsync()
     {
@@ -779,25 +926,26 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         Result<IReadOnlyList<PersonData>> result;
         if (editor.PersonId is not null)
         {
-            result = FamilyGraphEditor.Update(People, editor.PersonId, model);
+            result = FamilyGraphEditor.Update(graph, editor.PersonId, model);
         }
         else if (editor.Kind is null || editor.RelatesToId is null)
         {
-            result = FamilyGraphEditor.AddPerson(People, model);
+            result = FamilyGraphEditor.AddPerson(graph, model);
             selectedId = result.IsSuccess ? result.Value.LastOrDefault()?.Id : selectedId;
         }
         else
         {
-            result = FamilyGraphEditor.AddRelative(People, new AddRelativeRequest
+            result = FamilyGraphEditor.AddRelative(graph, new AddRelativeRequest
             {
                 RelatesToPersonId = editor.RelatesToId,
                 Kind = editor.Kind.Value,
                 OtherParentId = string.IsNullOrWhiteSpace(editor.OtherParentId) ? null : editor.OtherParentId,
                 Person = model,
+                ParentSet = editor.Kind is RelativeKind.Father or RelativeKind.Mother ? ToTarget(choice) : null,
             });
             if (result.IsSuccess)
             {
-                selectedId = result.Value.Select(person => person.Id).Except(People.Select(person => person.Id)).FirstOrDefault() ?? selectedId;
+                selectedId = result.Value.Select(person => person.Id).Except(graph.Select(person => person.Id)).FirstOrDefault() ?? selectedId;
             }
         }
 
@@ -821,7 +969,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        var result = FamilyGraphEditor.Remove(People, person.Id);
+        var result = FamilyGraphEditor.Remove(graph, person.Id);
         if (!result.IsSuccess)
         {
             formError = result.GetDisplayMessage();
@@ -841,7 +989,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        var result = FamilyGraphEditor.Link(People, linkAnchorId, linkTargetId, kind);
+        var parentLink = PendingParentLink;
+        var target = parentLink is null ? null : ToTarget(choice);
+        var result = FamilyGraphEditor.Link(graph, linkAnchorId, linkTargetId, kind, target);
         if (!result.IsSuccess)
         {
             formError = result.GetDisplayMessage();
@@ -853,17 +1003,118 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         string otherId = linkTargetId;
         CancelLink();
         formError = null;
-        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Linked, personId, otherId, kind);
+
+        if (parentLink is null)
+        {
+            await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Linked, personId, otherId, kind);
+            return;
+        }
+
+        var (before, parent) = parentLink.Value;
+
+        // The family the parent joined: the one that now holds them and did not before.
+        var after = result.Value.First(person => person.Id == before.Id);
+        var joined = after.ParentSets.FirstOrDefault(set =>
+            set.ParentIds.Contains(parent.Id)
+            && before.ParentSets.FirstOrDefault(old => old.Id == set.Id)?.ParentIds.Contains(parent.Id) != true);
+        bool started = joined is not null && before.ParentSets.All(old => old.Id != joined.Id);
+
+        if (started)
+        {
+            // A new family is a change to the child, so it is reported as one rather than as a link.
+            await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.ParentSetAdded, before.Id, parent.Id, null, joined!.Id, joined.Type);
+            return;
+        }
+
+        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Linked, personId, otherId, kind, joined?.Id, joined?.Type);
     }
 
-    private async Task UnlinkAsync(string personId, string otherId)
+    private async Task UnlinkAsync(string personId, string otherId, string? setId = null)
     {
         if (saving)
         {
             return;
         }
 
-        var result = FamilyGraphEditor.Unlink(People, personId, otherId);
+        var person = Person(personId);
+        var other = Person(otherId);
+        var result = FamilyGraphEditor.Unlink(graph, personId, otherId, setId);
+        if (!result.IsSuccess)
+        {
+            formError = result.GetDisplayMessage();
+            return;
+        }
+
+        // How the other person related to this one, and which family the link was in, read before it went away.
+        LinkKind? how = null;
+        ParentSetData? family = null;
+        if (person is not null && other is not null)
+        {
+            if (person.Spouses.Contains(otherId))
+            {
+                how = LinkKind.Spouse;
+            }
+            else if (ParentSetRules.AllParentIds(person).Contains(otherId))
+            {
+                how = LinkKind.Parent;
+                family = HoldingSet(person, otherId, setId);
+            }
+            else if (person.Children.Contains(otherId))
+            {
+                how = LinkKind.Child;
+                family = HoldingSet(other, personId, setId);
+            }
+        }
+
+        formError = null;
+        unlinkTarget = null;
+        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Unlinked, personId, otherId, how, family?.Id, family?.Type);
+    }
+
+    private static ParentSetData? HoldingSet(PersonData child, string parentId, string? setId)
+    {
+        var holding = child.ParentSets.Where(set => set.ParentIds.Contains(parentId)).ToList();
+        return setId is null ? holding.Count == 1 ? holding[0] : null : holding.FirstOrDefault(set => set.Id == setId);
+    }
+
+    private async Task ChangeSetTypeAsync(string personId, string setId, ChangeEventArgs e)
+    {
+        if (saving || !Enum.TryParse<ParentageType>(e.Value?.ToString(), out var type))
+        {
+            return;
+        }
+
+        await UpdateSetAsync(personId, setId, FamilyGraphEditor.SetParentSetType(graph, personId, setId, type));
+    }
+
+    private async Task ChangeSetDateAsync(string personId, string setId, ChangeEventArgs e)
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        string? text = e.Value?.ToString();
+        var date = PartialDate.FromStored(text);
+        if (!string.IsNullOrWhiteSpace(text) && date is null)
+        {
+            formError = "Use a date like 1987, 1987-06 or 1987-06-14.";
+            return;
+        }
+
+        await UpdateSetAsync(personId, setId, FamilyGraphEditor.SetParentSetDate(graph, personId, setId, date));
+    }
+
+    private async Task MakePrimaryAsync(string personId, string setId)
+    {
+        if (!saving)
+        {
+            await UpdateSetAsync(personId, setId, FamilyGraphEditor.SetPrimaryParentSet(graph, personId, setId));
+        }
+    }
+
+    private async Task UpdateSetAsync(string personId, string setId, Result<IReadOnlyList<PersonData>> result)
+    {
         if (!result.IsSuccess)
         {
             formError = result.GetDisplayMessage();
@@ -871,8 +1122,86 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
 
         formError = null;
-        unlinkOtherId = null;
-        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Unlinked, personId, otherId);
+        var set = result.Value.FirstOrDefault(person => person.Id == personId)?.ParentSets.FirstOrDefault(item => item.Id == setId);
+        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.ParentSetUpdated, personId, null, null, setId, set?.Type);
+    }
+
+    private void AskRemoveSet(string setId)
+    {
+        CancelLink();
+        confirmDelete = false;
+        unlinkTarget = null;
+        removeSetId = setId;
+    }
+
+    private async Task RemoveSetAsync(string personId, string setId)
+    {
+        if (saving)
+        {
+            return;
+        }
+
+        var removed = Person(personId)?.ParentSets.FirstOrDefault(set => set.Id == setId);
+        var result = FamilyGraphEditor.RemoveParentSet(graph, personId, setId);
+        if (!result.IsSuccess)
+        {
+            formError = result.GetDisplayMessage();
+            return;
+        }
+
+        formError = null;
+        removeSetId = null;
+        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.ParentSetRemoved, personId, null, null, setId, removed?.Type);
+    }
+
+    /// <summary>
+    /// Draws a person under another of their families. This is a view choice: <see cref="Changed"/> is not raised,
+    /// only <see cref="ActiveParentSetsChanged"/>, and the next render rebuilds the branch above them.
+    /// </summary>
+    private async Task SwitchSetAsync(string personId, string setId)
+    {
+        familiesOpenFor = null;
+        var person = Person(personId);
+        if (person is null || person.ParentSets.All(set => set.Id != setId))
+        {
+            return;
+        }
+
+        // The primary set is the default, so choosing it just forgets the override.
+        if (ParentSetRules.PrimaryOf(person)?.Id == setId)
+        {
+            activeSets.Remove(personId);
+        }
+        else
+        {
+            activeSets[personId] = setId;
+        }
+
+        Rebuild();
+        await ActiveParentSetsChanged.InvokeAsync(new Dictionary<string, string>(activeSets, StringComparer.Ordinal));
+    }
+
+    private void ToggleFamilies(string personId) =>
+        familiesOpenFor = familiesOpenFor == personId ? null : personId;
+
+    private async Task SeeAlsoAsync(TreeCard card)
+    {
+        selectedId = RealId(card);
+        familiesOpenFor = null;
+        editor = null;
+        await FocusAsync(RealId(card));
+    }
+
+    private bool HasNonBirthSets => graph.Any(person => person.ParentSets.Any(set => set.Type != ParentageType.Birth));
+
+    private async Task ToggleBloodOnly()
+    {
+        bloodOnly = !bloodOnly;
+        familiesOpenFor = null;
+        Rebuild();
+        shouldFit = true;
+        userAdjusted = false;
+        await NotifyViewAsync();
     }
 
     private Task OpenSelectedAsync(PersonData person) => OnOpenPerson.InvokeAsync(person);
@@ -898,13 +1227,13 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     /// <returns>A task that represents the asynchronous operation.</returns>
     public Task CenterOnAsync(string personId)
     {
-        if (string.IsNullOrWhiteSpace(personId) || People.All(person => person.Id != personId))
+        if (string.IsNullOrWhiteSpace(personId) || graph.All(person => person.Id != personId))
         {
             return Task.CompletedTask;
         }
 
         CancelLink();
-        unlinkOtherId = null;
+        unlinkTarget = null;
         selectedId = personId;
         editor = null;
         query = string.Empty;
@@ -937,7 +1266,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         selectedId = person.Id;
         query = string.Empty;
         editor = null;
-        unlinkOtherId = null;
+        unlinkTarget = null;
         return FocusAsync(person.Id);
     }
 
@@ -948,7 +1277,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        redo.Add(new Snapshot(People.ToList(), FocusPersonId));
+        redo.Add(new Snapshot(graph.ToList(), FocusPersonId));
         var snapshot = undo[^1];
         undo.RemoveAt(undo.Count - 1);
         await RestoreAsync(snapshot);
@@ -961,7 +1290,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
-        undo.Add(new Snapshot(People.ToList(), FocusPersonId));
+        undo.Add(new Snapshot(graph.ToList(), FocusPersonId));
         var snapshot = redo[^1];
         redo.RemoveAt(redo.Count - 1);
         await RestoreAsync(snapshot);
@@ -987,11 +1316,13 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         FamilyTreeChangeKind kind = FamilyTreeChangeKind.Snapshot,
         string? personId = null,
         string? otherPersonId = null,
-        LinkKind? link = null)
+        LinkKind? link = null,
+        string? parentSetId = null,
+        ParentageType? type = null)
     {
         if (!applyingHistory && kind != FamilyTreeChangeKind.FocusChanged)
         {
-            undo.Add(new Snapshot(People.ToList(), FocusPersonId));
+            undo.Add(new Snapshot(graph.ToList(), FocusPersonId));
             if (undo.Count > 40)
             {
                 undo.RemoveAt(0);
@@ -1003,7 +1334,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         saving = true;
         try
         {
-            await Changed.InvokeAsync(new FamilyTreeChange(next, focus, kind, personId, otherPersonId, link));
+            await Changed.InvokeAsync(new FamilyTreeChange(next, focus, kind, personId, otherPersonId, link, parentSetId, type));
         }
         finally
         {
@@ -1065,7 +1396,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private async Task NotifyViewAsync()
     {
         await DepthsChanged.InvokeAsync(new TreeDepths(ancestry, progeny));
-        await ViewChanged.InvokeAsync(new TreeView(ancestry, progeny, siblings, lineage, orientation));
+        await ViewChanged.InvokeAsync(new TreeView(ancestry, progeny, siblings, lineage, orientation, bloodOnly));
     }
 
     private void SetBirthYear(ChangeEventArgs e) => SetYear(true, e);
@@ -1156,6 +1487,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
 
         dragging = true;
+        familiesOpenFor = null;
         originX = e.ClientX;
         originY = e.ClientY;
     }
@@ -1220,7 +1552,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return new ViewportSize();
         }
 
-        return await module.InvokeAsync<ViewportSize>("size", viewport);
+        return await module.InvokeAsync<ViewportSize?>("size", viewport) ?? new ViewportSize();
     }
 
     private void Fit(double viewWidth, double viewHeight)
@@ -1245,6 +1577,19 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     }
 
     private sealed record Snapshot(IReadOnlyList<PersonData> People, string? FocusId);
+
+    /// <summary>A link the user asked to remove: the other person, and the family when the link is a parent link.</summary>
+    private sealed record UnlinkTarget(string OtherId, string? SetId);
+
+    private sealed record RelativeRow(string Label, string OtherId, string? SetId);
+
+    /// <summary>Which family a new parent joins: a family's id, or <see cref="NewFamily"/> with the type to start it with.</summary>
+    private sealed class ParentChoice
+    {
+        public string Value { get; set; } = NewFamily;
+
+        public ParentageType Type { get; set; } = ParentageType.Birth;
+    }
 
     private sealed class EditorState
     {
