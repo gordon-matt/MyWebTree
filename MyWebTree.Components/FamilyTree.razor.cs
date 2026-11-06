@@ -883,7 +883,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     /// <summary>One line describing a family: type, who is in it, and the date when there is one.</summary>
     private string SetSummary(ParentSetData set) =>
-        TypeWord(set.Type) + " · " + SetNames(set) + (set.Date is { } date ? " · " + date : "");
+        TypeWord(set.Type) + " · " + SetNames(set) + (set.Type != ParentageType.Birth && set.Date is { } date ? " · " + date : "");
 
     private static bool HasRoom(ParentSetData set, Gender role, Func<string, Gender?> genderOf, string? excludeParentId) =>
         set.ParentIds.Count < 2
@@ -903,7 +903,22 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         var open = OpenSets(child, role, excludeParentId);
         string? active = ParentSetRules.ActiveOf(child, activeSets)?.Id;
         var pick = open.FirstOrDefault(set => set.Id == active) ?? open.FirstOrDefault();
-        return new ParentChoice { Value = pick?.Id ?? NewFamily, Type = ParentageType.Birth };
+        bool hasBirth = child.ParentSets.Any(set => set.Type == ParentageType.Birth);
+        return new ParentChoice { Value = pick?.Id ?? NewFamily, Type = hasBirth ? ParentageType.Adopted : ParentageType.Birth };
+    }
+
+    /// <summary>
+    /// A new family defaults to birth parents, unless the child already has them. Birth parents are unique, so the
+    /// type moves to adopted when the user asks for another family.
+    /// </summary>
+    private void CoerceNewFamilyType(PersonData child)
+    {
+        if (choice.Value == NewFamily
+            && choice.Type == ParentageType.Birth
+            && child.ParentSets.Any(set => set.Type == ParentageType.Birth))
+        {
+            choice.Type = ParentageType.Adopted;
+        }
     }
 
     private ParentSetTarget ToTarget(ParentChoice pick) => pick.Value == NewFamily

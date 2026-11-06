@@ -150,7 +150,10 @@
                                         @if (Editable)
                                         {
                                             <select class="mwt-set-type" aria-label="Type of family" disabled="@saving" value="@set.Type" @onchange="e => ChangeSetTypeAsync(person.Id, set.Id, e)">
-                                                <option value="@ParentageType.Birth">Birth</option>
+                                                @if (set.Type == ParentageType.Birth || !person.ParentSets.Any(other => other.Type == ParentageType.Birth))
+                                                {
+                                                    <option value="@ParentageType.Birth">Birth</option>
+                                                }
                                                 <option value="@ParentageType.Adopted">Adopted</option>
                                                 <option value="@ParentageType.Foster">Foster</option>
                                             </select>
@@ -188,14 +191,14 @@
                                             </div>
                                         }
                                     }
-                                    @if (Editable)
+                                    @if (Editable && set.Type != ParentageType.Birth)
                                     {
                                         <label class="mwt-set-date">
                                             Date
                                             <input placeholder="yyyy-mm-dd" maxlength="10" disabled="@saving" value="@set.Date" @onchange="e => ChangeSetDateAsync(person.Id, set.Id, e)" />
                                         </label>
                                     }
-                                    else if (set.Date is { } placed)
+                                    else if (set.Type != ParentageType.Birth && set.Date is { } placed)
                                     {
                                         <p class="mwt-meta">@placed</p>
                                     }
@@ -457,7 +460,7 @@
             {
                 <label>
                     Family
-                    <select @bind="choice.Value">
+                    <select @bind="choice.Value" @bind:after="() => CoerceNewFamilyType(child)">
                         @foreach (var set in open)
                         {
                             <option value="@set.Id">Add to the family: @SetSummary(set)</option>
@@ -471,7 +474,10 @@
                 <label>
                     @(child.ParentSets.Count == 0 ? "Parent type" : "Type of the new family")
                     <select @bind="choice.Type">
-                        <option value="@ParentageType.Birth">Birth</option>
+                        @if (!child.ParentSets.Any(set => set.Type == ParentageType.Birth))
+                        {
+                            <option value="@ParentageType.Birth">Birth</option>
+                        }
                         <option value="@ParentageType.Adopted">Adopted</option>
                         <option value="@ParentageType.Foster">Foster</option>
                     </select>

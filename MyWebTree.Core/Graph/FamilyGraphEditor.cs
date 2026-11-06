@@ -271,6 +271,13 @@ public static class FamilyGraphEditor
             return Invalid(child.DisplayName + " lists the same parent twice.");
         }
 
+        // Birth parents are the family the child was born into, so there is only one of them. Adopted and foster
+        // families can be added beside it.
+        if (type == ParentageType.Birth && child.ParentSets.Any(set => set.Type == ParentageType.Birth))
+        {
+            return Result<IReadOnlyList<PersonData>>.Conflict(child.DisplayName + " already has birth parents.");
+        }
+
         foreach (string parentId in parentIds)
         {
             if (!map.ContainsKey(parentId))
@@ -290,7 +297,7 @@ public static class FamilyGraphEditor
             Type = type,
             IsPrimary = child.ParentSets.Count == 0,
             ParentIds = parentIds.ToList(),
-            Date = date,
+            Date = type == ParentageType.Birth ? null : date,
         };
 
         if (child.ParentSets.Any(set => ParentSetRules.SameFamily(set, added)))
@@ -326,7 +333,13 @@ public static class FamilyGraphEditor
         ParentageType type) =>
         ChangeSet(people, personId, setId, (child, set) =>
         {
-            var changed = set with { Type = type };
+            if (type == ParentageType.Birth && child.ParentSets.Any(other => other.Id != set.Id && other.Type == ParentageType.Birth))
+            {
+                return Result<ParentSetData>.Conflict(child.DisplayName + " already has birth parents.");
+            }
+
+            // A birth set has no date of its own. The child's birth date is that date.
+            var changed = set with { Type = type, Date = type == ParentageType.Birth ? null : set.Date };
             return child.ParentSets.Any(other => other.Id != set.Id && ParentSetRules.SameFamily(other, changed))
                 ? Result<ParentSetData>.Conflict(child.DisplayName + " already has that set of parents.")
                 : Result<ParentSetData>.Success(changed);
@@ -368,7 +381,8 @@ public static class FamilyGraphEditor
         string personId,
         string setId,
         PartialDate? date) =>
-        ChangeSet(people, personId, setId, (_, set) => Result<ParentSetData>.Success(set with { Date = date }));
+        ChangeSet(people, personId, setId, (_, set) =>
+            Result<ParentSetData>.Success(set.Type == ParentageType.Birth ? set with { Date = null } : set with { Date = date }));
 
     /// <summary>
     /// Removes a whole set of parents from a child. The parents stay in the tree, and stay listed as a parent of
@@ -421,6 +435,11 @@ public static class FamilyGraphEditor
             if (person.ParentSets.Select(set => set.Id).Distinct(StringComparer.Ordinal).Count() != person.ParentSets.Count)
             {
                 return Invalid(person.DisplayName + " has two sets of parents with the same id.");
+            }
+
+            if (person.ParentSets.Count(set => set.Type == ParentageType.Birth) > 1)
+            {
+                return Invalid(person.DisplayName + " already has birth parents.");
             }
 
             for (int i = 0; i < person.ParentSets.Count; i++)
@@ -608,6 +627,11 @@ public static class FamilyGraphEditor
                 IsPrimary = sets.Count == 0,
                 ParentIds = [parent.Id],
             };
+            if (placed.Type == ParentageType.Birth && sets.Any(set => set.Type == ParentageType.Birth))
+            {
+                return Result<ParentSetData>.Conflict(child.DisplayName + " already has birth parents.");
+            }
+
             if (sets.Any(set => ParentSetRules.SameFamily(set, placed)))
             {
                 return Result<ParentSetData>.Conflict(child.DisplayName + " already has that set of parents.");

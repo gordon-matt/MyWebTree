@@ -53,6 +53,15 @@ public class ParentSetEditorTests
     }
 
     [Fact]
+    public void AddParentSet_rejects_a_second_birth_set()
+    {
+        var result = FamilyGraphEditor.AddParentSet(BirthAndAdopted(), ChildId, ParentageType.Birth, ["alan"]);
+
+        Assert.Equal(ResultStatus.Conflict, result.Status);
+        Assert.Contains("birth parents", result.GetDisplayMessage());
+    }
+
+    [Fact]
     public void AddParentSet_rejects_a_duplicate_set_of_the_same_type()
     {
         var result = FamilyGraphEditor.AddParentSet(BirthAndAdopted(), ChildId, ParentageType.Birth, ["beth", "bob"]);
@@ -181,6 +190,21 @@ public class ParentSetEditorTests
         var result = Success(FamilyGraphEditor.SetParentSetType(BirthAndAdopted(), ChildId, AdoptedSetId, ParentageType.Foster));
 
         Assert.Equal(ParentageType.Foster, Find(result, ChildId).ParentSets.Single(set => set.Id == AdoptedSetId).Type);
+    }
+
+    [Fact]
+    public void SetParentSetType_rejects_a_second_birth_set_and_clears_a_date_when_a_set_becomes_birth()
+    {
+        var secondBirth = FamilyGraphEditor.SetParentSetType(BirthAndAdopted(), ChildId, AdoptedSetId, ParentageType.Birth);
+        Assert.Equal(ResultStatus.Conflict, secondBirth.Status);
+        Assert.Contains("birth parents", secondBirth.GetDisplayMessage());
+
+        // Once the birth set is no longer birth, the adopted set can take its place, and its own date is cleared.
+        var people = Success(FamilyGraphEditor.SetParentSetType(BirthAndAdopted(), ChildId, BirthSetId, ParentageType.Foster));
+        var dated = Success(FamilyGraphEditor.SetParentSetDate(people, ChildId, AdoptedSetId, new PartialDate(1990)));
+        var moved = Success(FamilyGraphEditor.SetParentSetType(dated, ChildId, AdoptedSetId, ParentageType.Birth));
+        Assert.Null(Find(moved, ChildId).ParentSets.Single(set => set.Id == AdoptedSetId).Date);
+        Assert.Equal(ParentageType.Birth, Find(moved, ChildId).ParentSets.Single(set => set.Id == AdoptedSetId).Type);
     }
 
     [Fact]

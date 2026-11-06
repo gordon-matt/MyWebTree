@@ -124,9 +124,18 @@ public static class ParentSetRules
                     continue;
                 }
 
-                sets.Add(string.IsNullOrWhiteSpace(set.Id)
-                    ? set with { Id = ImplicitSetId(person.Id) + "-" + i }
-                    : set);
+                if (string.IsNullOrWhiteSpace(set.Id))
+                {
+                    set = set with { Id = ImplicitSetId(person.Id) + "-" + i };
+                }
+
+                // A birth set takes its date from the child's own birth, so a date stored on the set is dropped.
+                if (set.Type == ParentageType.Birth && set.Date is not null)
+                {
+                    set = set with { Date = null };
+                }
+
+                sets.Add(set);
             }
         }
 

@@ -223,7 +223,7 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 
 ### Rules
 
-- A person has at most two parents in any one set, and at most one father and one mother in it. A person can have more than one set.
+- A person has at most two parents in any one set, and at most one father and one mother in it. A person can have more than one set, but only one of them can be birth parents.
 - A set is never empty, and a person has exactly one primary set. The primary set is the one that decides `Parents`.
 - A spouse link and a parent link are stored in both directions.
 - Adding a second parent also links those two parents as spouses. Linking an existing person as a second parent does the same.
@@ -263,7 +263,7 @@ var kim = new PersonData
 - A child whose link is not a birth link has a small **A** (adopted) or **F** (foster) badge, with the type as its accessible name.
 - The line between a child and their parents is solid for birth, dashed for adopted, and dotted for foster. A line to an Add father or Add mother card is a faint solid line, so it cannot be mistaken for an adopted link. Colour is never the only cue.
 - A person with more than one set has an **N families** chip. It opens a list of the sets (type, parents, date) with the active one checked. Choosing one redraws that branch in place.
-- The side panel lists each set with its type (editable), date (editable), and members, plus **Show in tree**, **Make primary**, and **Remove** when `Editable`.
+- The side panel lists each set with its type (editable), and for an adopted or foster set a date (editable). A birth set has no date of its own, because that date is the child's birth date. It also lists the members, plus **Show in tree**, **Make primary**, and **Remove** when `Editable`.
 - Add father and Add mother ask whether to add to a family that has room or start a new one, and what type the new one is. Link parent asks the same. A person with no parents yet only chooses the type.
 - `Editable="false"` hides every edit but still lets people switch the active set, because that is only a view.
 

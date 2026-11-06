@@ -208,12 +208,14 @@ public sealed class FamilyTreeParentSetTests : BunitContext
     {
         var tree = Draw(BirthAndAdopted(), Kim);
 
-        tree.FindAll(".mwt-set-date input")[1].Change("1990-02-30");
+        // A birth set has no date box. The only one belongs to the adopted set.
+        Assert.Single(tree.FindAll(".mwt-set-date input"));
+        tree.Find(".mwt-set-date input").Change("1990-02-30");
         Assert.Empty(changes);
         Assert.Contains("Use a date like", tree.Find(".mwt-banner").TextContent);
 
         // The banner re-rendered the panel, so the input is looked up again.
-        tree.FindAll(".mwt-set-date input")[1].Change("1988-04");
+        tree.Find(".mwt-set-date input").Change("1988-04");
 
         var change = Assert.Single(changes);
         Assert.Equal(FamilyTreeChangeKind.ParentSetUpdated, change.Kind);
