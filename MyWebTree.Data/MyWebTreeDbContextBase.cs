@@ -20,6 +20,16 @@ public abstract class MyWebTreeDbContextBase(DbContextOptions options) : DbConte
     /// </summary>
     public DbSet<PersonRelationship> Relationships => Set<PersonRelationship>();
 
+    /// <summary>
+    /// Gets the parent sets.
+    /// </summary>
+    public DbSet<ParentSet> ParentSets => Set<ParentSet>();
+
+    /// <summary>
+    /// Gets the parent set members.
+    /// </summary>
+    public DbSet<ParentSetMember> ParentSetMembers => Set<ParentSetMember>();
+
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder builder)
     {

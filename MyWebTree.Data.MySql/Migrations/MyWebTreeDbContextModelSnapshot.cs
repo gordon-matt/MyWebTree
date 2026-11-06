@@ -17,7 +17,7 @@ namespace MyWebTree.Data.MySql.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("webtree")
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("MyWebTree.Data.Entities.FamilyTree", b =>
@@ -51,6 +51,65 @@ namespace MyWebTree.Data.MySql.Migrations
                     b.HasIndex("FocusPersonId");
 
                     b.ToTable("Trees", "webtree");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("ChildPersonId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Date")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("TreeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChildPersonId");
+
+                    b.HasIndex("TreeId");
+
+                    b.ToTable("ParentSets", "webtree");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSetMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("ParentPersonId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ParentSetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TreeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentPersonId");
+
+                    b.HasIndex("TreeId");
+
+                    b.HasIndex("ParentSetId", "ParentPersonId")
+                        .IsUnique();
+
+                    b.ToTable("ParentSetMembers", "webtree");
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.Person", b =>
@@ -154,6 +213,36 @@ namespace MyWebTree.Data.MySql.Migrations
                     b.Navigation("FocusPerson");
                 });
 
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
+                {
+                    b.HasOne("MyWebTree.Data.Entities.Person", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSetMember", b =>
+                {
+                    b.HasOne("MyWebTree.Data.Entities.Person", "ParentPerson")
+                        .WithMany()
+                        .HasForeignKey("ParentPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyWebTree.Data.Entities.ParentSet", "ParentSet")
+                        .WithMany("Members")
+                        .HasForeignKey("ParentSetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ParentPerson");
+
+                    b.Navigation("ParentSet");
+                });
+
             modelBuilder.Entity("MyWebTree.Data.Entities.Person", b =>
                 {
                     b.HasOne("MyWebTree.Data.Entities.FamilyTree", "Tree")
@@ -187,6 +276,11 @@ namespace MyWebTree.Data.MySql.Migrations
             modelBuilder.Entity("MyWebTree.Data.Entities.FamilyTree", b =>
                 {
                     b.Navigation("People");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
+                {
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

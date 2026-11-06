@@ -1,6 +1,8 @@
 using Extenso.Data.Entity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MyWebTree.Data;
@@ -63,7 +65,8 @@ public sealed class TestDatabase : IAsyncDisposable
 
     public IFamilyTreeService Trees => scope.ServiceProvider.GetRequiredService<IFamilyTreeService>();
 
-    public static async Task<TestDatabase> CreateAsync()
+    /// <summary>Opens a new in-memory database, migrated to the given migration (or to the latest when none is given).</summary>
+    public static async Task<TestDatabase> CreateAsync(string? migrateTo = null)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         string connectionString = $"Data Source=mwt-tests-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
@@ -78,11 +81,13 @@ public sealed class TestDatabase : IAsyncDisposable
         var provider = services.BuildServiceProvider(validateScopes: true);
         await using (var context = provider.GetRequiredService<IMyWebTreeDbContextFactory>().GetContext())
         {
-            await context.Database.MigrateAsync(cancellationToken);
+            await context.GetService<IMigrator>().MigrateAsync(migrateTo, cancellationToken);
         }
 
         return new TestDatabase(keepAlive, provider);
     }
+
+    public DbContext GetContext() => provider.GetRequiredService<IMyWebTreeDbContextFactory>().GetContext();
 
     public async ValueTask DisposeAsync()
     {

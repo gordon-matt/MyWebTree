@@ -25,6 +25,8 @@ public static class ServiceCollectionExtensions
             services.AddMyWebTreeRepository<FamilyTree>();
             services.AddMyWebTreeRepository<Person>();
             services.AddMyWebTreeRepository<PersonRelationship>();
+            services.AddMyWebTreeRepository<ParentSet>();
+            services.AddMyWebTreeRepository<ParentSetMember>();
 
             services.TryAddScoped<IFamilyTreeService, FamilyTreeService>();
             services.AddHostedService<Hosting.MyWebTreeDatabaseInitializer>();

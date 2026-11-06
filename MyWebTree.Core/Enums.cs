@@ -19,11 +19,14 @@ public enum Gender
     Female = 2,
 }
 
-/// <summary>A stored link between two people. Spouse rows are kept once; parent rows point from parent to child.</summary>
+/// <summary>
+/// A stored link between two people. Spouse rows are kept once. Parent rows are no longer written: a person's
+/// parents live in their parent sets. The value stays so a database from before parent sets can still be migrated.
+/// </summary>
 public enum RelationshipKind
 {
     /// <summary>
-    /// The parent value.
+    /// The parent value. Only found in a database that has not been migrated to parent sets yet.
     /// </summary>
     Parent = 0,
     /// <summary>

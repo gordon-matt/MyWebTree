@@ -28,6 +28,14 @@ public static class Constants
         /// The relationships constant.
         /// </summary>
         public const string Relationships = "Relationships";
+        /// <summary>
+        /// The parent sets constant.
+        /// </summary>
+        public const string ParentSets = "ParentSets";
+        /// <summary>
+        /// The parent set members constant.
+        /// </summary>
+        public const string ParentSetMembers = "ParentSetMembers";
     }
 
     /// <summary>

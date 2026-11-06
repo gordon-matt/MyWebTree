@@ -7,7 +7,9 @@ public sealed class FamilyTreeService(
     ILogger<FamilyTreeService> logger,
     IRepository<FamilyTree> trees,
     IRepository<Person> people,
-    IRepository<PersonRelationship> relationships) : IFamilyTreeService
+    IRepository<PersonRelationship> relationships,
+    IRepository<ParentSet> parentSets,
+    IRepository<ParentSetMember> parentSetMembers) : IFamilyTreeService
 {
     /// <summary>
     /// Lists the value.
@@ -64,7 +66,21 @@ public sealed class FamilyTreeService(
             CancellationToken = cancellationToken,
         })).ToList();
 
-        return Result<FamilyTreeDetail>.Success(ToDetail(tree, members, links));
+        var sets = (await parentSets.FindAsync(new SearchOptions<ParentSet>
+        {
+            Query = set => set.TreeId == treeId,
+            OrderBy = query => query.OrderBy(set => set.Id),
+            CancellationToken = cancellationToken,
+        })).ToList();
+
+        var setMembers = (await parentSetMembers.FindAsync(new SearchOptions<ParentSetMember>
+        {
+            Query = member => member.TreeId == treeId,
+            OrderBy = query => query.OrderBy(member => member.Id),
+            CancellationToken = cancellationToken,
+        })).ToList();
+
+        return Result<FamilyTreeDetail>.Success(ToDetail(tree, members, links, sets, setMembers));
     }
 
     /// <summary>
@@ -145,6 +161,8 @@ public sealed class FamilyTreeService(
         var token = ContextOptions.ForCancellationToken(cancellationToken);
         tree.FocusPersonId = null;
         await trees.UpdateAsync(tree, token);
+        await parentSetMembers.DeleteAsync(member => member.TreeId == treeId, token);
+        await parentSets.DeleteAsync(set => set.TreeId == treeId, token);
         await relationships.DeleteAsync(link => link.TreeId == treeId, token);
         await people.DeleteAsync(person => person.TreeId == treeId, token);
         await trees.DeleteAsync(tree, token);
@@ -179,6 +197,9 @@ public sealed class FamilyTreeService(
             return validated.To<FamilyTreeDetail>();
         }
 
+        // The normalized graph: every child has explicit sets and exactly one is primary.
+        incoming = validated.Value.ToList();
+
         var tree = await trees.FindOneAsync(treeId);
         if (tree is null)
         {
@@ -192,12 +213,46 @@ public sealed class FamilyTreeService(
             CancellationToken = cancellationToken,
         })).ToDictionary(person => person.Id);
 
+        var existingSets = (await parentSets.FindAsync(new SearchOptions<ParentSet>
+        {
+            Query = set => set.TreeId == treeId,
+            CancellationToken = cancellationToken,
+        })).ToDictionary(set => set.Id);
+
+        // Spouse links and set members are rewritten wholesale; nothing else points at them.
         await relationships.DeleteAsync(link => link.TreeId == treeId, token);
+        await parentSetMembers.DeleteAsync(member => member.TreeId == treeId, token);
 
         var keep = incoming
             .Select(person => int.TryParse(person.Id, out int id) ? id : 0)
             .Where(id => id > 0)
             .ToHashSet();
+
+        // A set keeps its row (and so its id) only while it still belongs to the same stored child.
+        var keptSets = new Dictionary<string, ParentSet>(StringComparer.Ordinal);
+        foreach (var person in incoming)
+        {
+            if (!int.TryParse(person.Id, out int childId) || !existing.ContainsKey(childId))
+            {
+                continue;
+            }
+
+            foreach (var set in person.ParentSets)
+            {
+                if (int.TryParse(set.Id, out int setId)
+                    && existingSets.TryGetValue(setId, out var storedSet)
+                    && storedSet.ChildPersonId == childId)
+                {
+                    keptSets[set.Id] = storedSet;
+                }
+            }
+        }
+
+        var droppedSets = existingSets.Values.Where(set => !keptSets.ContainsValue(set)).ToList();
+        if (droppedSets.Count > 0)
+        {
+            await parentSets.DeleteAsync(droppedSets, token);
+        }
 
         var removed = existing.Values.Where(person => !keep.Contains(person.Id)).ToList();
         if (tree.FocusPersonId is int focused && removed.Any(person => person.Id == focused))
@@ -255,6 +310,8 @@ public sealed class FamilyTreeService(
             await relationships.InsertAsync(links, token);
         }
 
+        await SaveParentSetsAsync(treeId, incoming, idMap, keptSets, token);
+
         tree.FocusPersonId = focusPersonId is not null && idMap.TryGetValue(focusPersonId, out int mapped) ? mapped : null;
         tree.UpdatedAtUtc = DateTime.UtcNow;
         await trees.UpdateAsync(tree, token);
@@ -287,21 +344,6 @@ public sealed class FamilyTreeService(
         foreach (var person in incoming)
         {
             int personId = idMap[person.Id];
-            foreach (string parentId in person.Parents)
-            {
-                int parent = idMap[parentId];
-                if (seen.Add($"p:{parent}:{personId}"))
-                {
-                    links.Add(new PersonRelationship
-                    {
-                        TreeId = treeId,
-                        FromPersonId = parent,
-                        ToPersonId = personId,
-                        Kind = RelationshipKind.Parent,
-                    });
-                }
-            }
-
             foreach (string spouseId in person.Spouses)
             {
                 int spouse = idMap[spouseId];
@@ -312,7 +354,7 @@ public sealed class FamilyTreeService(
 
                 int low = Math.Min(personId, spouse);
                 int high = Math.Max(personId, spouse);
-                if (seen.Add($"s:{low}:{high}"))
+                if (seen.Add($"{low}:{high}"))
                 {
                     links.Add(new PersonRelationship
                     {
@@ -328,11 +370,84 @@ public sealed class FamilyTreeService(
         return links;
     }
 
-    private static FamilyTreeDetail ToDetail(FamilyTree tree, List<Person> members, List<PersonRelationship> links)
+    /// <summary>
+    /// Writes every child's parent sets. A set that was already stored is updated in place so its id survives;
+    /// any other set is inserted. Members are always inserted fresh, in the order the set lists its parents.
+    /// </summary>
+    private async Task SaveParentSetsAsync(
+        int treeId,
+        IReadOnlyList<PersonData> incoming,
+        Dictionary<string, int> idMap,
+        Dictionary<string, ParentSet> keptSets,
+        ContextOptions token)
+    {
+        var updates = new List<ParentSet>();
+        var inserts = new List<(ParentSetData Set, ParentSet Entity)>();
+
+        foreach (var person in incoming)
+        {
+            foreach (var set in person.ParentSets)
+            {
+                if (keptSets.TryGetValue(set.Id, out var stored))
+                {
+                    stored.Type = set.Type;
+                    stored.IsPrimary = set.IsPrimary;
+                    stored.Date = set.Date;
+                    updates.Add(stored);
+                    inserts.Add((set, stored));
+                }
+                else
+                {
+                    var created = new ParentSet
+                    {
+                        TreeId = treeId,
+                        ChildPersonId = idMap[person.Id],
+                        Type = set.Type,
+                        IsPrimary = set.IsPrimary,
+                        Date = set.Date,
+                    };
+                    inserts.Add((set, created));
+                }
+            }
+        }
+
+        if (updates.Count > 0)
+        {
+            await parentSets.UpdateAsync(updates, token);
+        }
+
+        var added = inserts.Where(item => !keptSets.ContainsKey(item.Set.Id)).Select(item => item.Entity).ToList();
+        if (added.Count > 0)
+        {
+            await parentSets.InsertAsync(added, token);
+        }
+
+        var members = inserts
+            .SelectMany(item => item.Set.ParentIds.Select(parentId => new ParentSetMember
+            {
+                TreeId = treeId,
+                ParentSetId = item.Entity.Id,
+                ParentPersonId = idMap[parentId],
+            }))
+            .ToList();
+
+        if (members.Count > 0)
+        {
+            await parentSetMembers.InsertAsync(members, token);
+        }
+    }
+
+    private static FamilyTreeDetail ToDetail(
+        FamilyTree tree,
+        List<Person> members,
+        List<PersonRelationship> links,
+        List<ParentSet> sets,
+        List<ParentSetMember> setMembers)
     {
         var parents = members.ToDictionary(person => person.Id, _ => new List<string>());
         var spouses = members.ToDictionary(person => person.Id, _ => new List<string>());
         var children = members.ToDictionary(person => person.Id, _ => new List<string>());
+        var childSets = members.ToDictionary(person => person.Id, _ => new List<ParentSetData>());
         var known = members.Select(person => person.Id).ToHashSet();
 
         foreach (var link in links)
@@ -344,6 +459,7 @@ public sealed class FamilyTreeService(
 
             if (link.Kind == RelationshipKind.Parent)
             {
+                // Only a database that was never migrated has these; they read as one implicit birth set.
                 Add(children, link.FromPersonId, link.ToPersonId);
                 Add(parents, link.ToPersonId, link.FromPersonId);
             }
@@ -354,7 +470,34 @@ public sealed class FamilyTreeService(
             }
         }
 
-        var people = members.Select(person => new PersonData
+        var membersBySet = setMembers
+            .Where(member => known.Contains(member.ParentPersonId))
+            .GroupBy(member => member.ParentSetId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(member => member.Id).Select(member => member.ParentPersonId).ToList());
+
+        foreach (var set in sets.OrderBy(set => set.Id))
+        {
+            if (!known.Contains(set.ChildPersonId) || !membersBySet.TryGetValue(set.Id, out var parentIds) || parentIds.Count == 0)
+            {
+                continue;
+            }
+
+            childSets[set.ChildPersonId].Add(new ParentSetData
+            {
+                Id = set.Id.ToString(),
+                Type = set.Type,
+                IsPrimary = set.IsPrimary,
+                ParentIds = parentIds.Select(id => id.ToString()).ToList(),
+                Date = set.Date,
+            });
+
+            foreach (int parentId in parentIds)
+            {
+                Add(children, parentId, set.ChildPersonId);
+            }
+        }
+
+        var people = members.Select(person => ParentSetRules.NormalizePerson(new PersonData
         {
             Id = person.Id.ToString(),
             Gender = person.Gender,
@@ -367,9 +510,10 @@ public sealed class FamilyTreeService(
             AvatarUrl = person.AvatarUrl,
             Notes = person.Notes,
             Parents = parents[person.Id],
+            ParentSets = childSets[person.Id],
             Spouses = spouses[person.Id],
             Children = children[person.Id],
-        }).ToList();
+        })).ToList();
 
         return new FamilyTreeDetail(
             tree.Id,
@@ -378,7 +522,6 @@ public sealed class FamilyTreeService(
             tree.FocusPersonId?.ToString(),
             people);
     }
-
     private static void Add(Dictionary<int, List<string>> lists, int ownerId, int otherId)
     {
         string id = otherId.ToString();
