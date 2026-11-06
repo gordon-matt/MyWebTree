@@ -1,7 +1,23 @@
 namespace MyWebTree.Models;
 
+/// <summary>
+/// Represents the family tree summary.
+/// </summary>
+/// <param name="Id">The identifier.</param>
+/// <param name="Name">The name.</param>
+/// <param name="Description">The description.</param>
+/// <param name="PeopleCount">The people count.</param>
+/// <param name="UpdatedAtUtc">The updated at utc.</param>
 public sealed record FamilyTreeSummary(int Id, string Name, string? Description, int PeopleCount, DateTime UpdatedAtUtc);
 
+/// <summary>
+/// Represents the family tree detail.
+/// </summary>
+/// <param name="Id">The identifier.</param>
+/// <param name="Name">The name.</param>
+/// <param name="Description">The description.</param>
+/// <param name="FocusPersonId">The focus person identifier.</param>
+/// <param name="People">The people.</param>
 public sealed record FamilyTreeDetail(
     int Id,
     string Name,
@@ -9,36 +25,78 @@ public sealed record FamilyTreeDetail(
     string? FocusPersonId,
     IReadOnlyList<PersonData> People);
 
+/// <summary>
+/// Represents the person write model.
+/// </summary>
 public sealed record PersonWriteModel
 {
+    /// <summary>
+    /// Gets or sets the gender.
+    /// </summary>
     public Gender Gender { get; init; }
 
+    /// <summary>
+    /// Gets or sets the first name.
+    /// </summary>
     public string FirstName { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the last name.
+    /// </summary>
     public string LastName { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the birth date.
+    /// </summary>
     public PartialDate? BirthDate { get; init; }
 
+    /// <summary>
+    /// Gets or sets the death date.
+    /// </summary>
     public PartialDate? DeathDate { get; init; }
 
+    /// <summary>
+    /// Gets or sets the birth place.
+    /// </summary>
     public string? BirthPlace { get; init; }
 
+    /// <summary>
+    /// Gets or sets the death place.
+    /// </summary>
     public string? DeathPlace { get; init; }
 
+    /// <summary>
+    /// Gets or sets the avatar URL.
+    /// </summary>
     public string? AvatarUrl { get; init; }
 
+    /// <summary>
+    /// Gets or sets the notes.
+    /// </summary>
     public string? Notes { get; init; }
 }
 
+/// <summary>
+/// Represents the add relative request.
+/// </summary>
 public sealed record AddRelativeRequest
 {
+    /// <summary>
+    /// Gets or sets the relates to person identifier.
+    /// </summary>
     public required string RelatesToPersonId { get; init; }
 
+    /// <summary>
+    /// Gets or sets the kind.
+    /// </summary>
     public required RelativeKind Kind { get; init; }
 
     /// <summary>The other parent, when the new person is a child and more than one spouse could be.</summary>
     public string? OtherParentId { get; init; }
 
+    /// <summary>
+    /// Gets or sets the person.
+    /// </summary>
     public required PersonWriteModel Person { get; init; }
 }
 

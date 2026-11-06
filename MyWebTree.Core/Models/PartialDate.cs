@@ -8,12 +8,27 @@ namespace MyWebTree.Models;
 /// </summary>
 public readonly record struct PartialDate : IComparable<PartialDate>
 {
+    /// <summary>
+    /// Gets the year.
+    /// </summary>
     public int Year { get; }
 
+    /// <summary>
+    /// Gets the month.
+    /// </summary>
     public int? Month { get; }
 
+    /// <summary>
+    /// Gets the day.
+    /// </summary>
     public int? Day { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the PartialDate class.
+    /// </summary>
+    /// <param name="year">The year.</param>
+    /// <param name="month">The month.</param>
+    /// <param name="day">The day.</param>
     public PartialDate(int year, int? month = null, int? day = null)
     {
         if (year is < 1 or > 9999)
@@ -41,6 +56,14 @@ public readonly record struct PartialDate : IComparable<PartialDate>
         Day = day;
     }
 
+    /// <summary>
+    /// Attempts to create.
+    /// </summary>
+    /// <param name="year">The year.</param>
+    /// <param name="month">The month.</param>
+    /// <param name="day">The day.</param>
+    /// <param name="date">When this method returns, contains the date.</param>
+    /// <returns>true when the condition is met; otherwise, false.</returns>
     public static bool TryCreate(int year, int? month, int? day, out PartialDate date)
     {
         if (year is < 1 or > 9999 || (day is not null && month is null) || month is < 1 or > 12)
@@ -123,6 +146,11 @@ public readonly record struct PartialDate : IComparable<PartialDate>
         return Day < other.Day;
     }
 
+    /// <summary>
+    /// Compares to.
+    /// </summary>
+    /// <param name="other">The other.</param>
+    /// <returns>The int.</returns>
     public int CompareTo(PartialDate other)
     {
         int year = Year.CompareTo(other.Year);
@@ -135,6 +163,7 @@ public readonly record struct PartialDate : IComparable<PartialDate>
         return month != 0 ? month : (Day ?? 0).CompareTo(other.Day ?? 0);
     }
 
+    /// <inheritdoc/>
     public override string ToString()
     {
         if (Month is int month && Day is int day)

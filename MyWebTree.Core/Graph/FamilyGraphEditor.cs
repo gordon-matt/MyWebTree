@@ -9,6 +9,12 @@ namespace MyWebTree.Graph;
 /// </summary>
 public static class FamilyGraphEditor
 {
+    /// <summary>
+    /// Adds the person.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <param name="model">The model.</param>
+    /// <returns>The outcome for the person datas.</returns>
     public static Result<IReadOnlyList<PersonData>> AddPerson(IReadOnlyList<PersonData> people, PersonWriteModel model)
     {
         var written = Clean(model);
@@ -23,6 +29,12 @@ public static class FamilyGraphEditor
         return Result<IReadOnlyList<PersonData>>.Success(List(map));
     }
 
+    /// <summary>
+    /// Adds the relative.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <param name="request">The request.</param>
+    /// <returns>The outcome for the person datas.</returns>
     public static Result<IReadOnlyList<PersonData>> AddRelative(IReadOnlyList<PersonData> people, AddRelativeRequest request)
     {
         var map = Index(people);
@@ -78,6 +90,13 @@ public static class FamilyGraphEditor
         return Validate(List(map));
     }
 
+    /// <summary>
+    /// Updates the value.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <param name="personId">The person identifier.</param>
+    /// <param name="model">The model.</param>
+    /// <returns>The outcome for the person datas.</returns>
     public static Result<IReadOnlyList<PersonData>> Update(IReadOnlyList<PersonData> people, string personId, PersonWriteModel model)
     {
         var map = Index(people);
@@ -109,6 +128,12 @@ public static class FamilyGraphEditor
         return Validate(List(map));
     }
 
+    /// <summary>
+    /// Removes the value.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <param name="personId">The person identifier.</param>
+    /// <returns>The outcome for the person datas.</returns>
     public static Result<IReadOnlyList<PersonData>> Remove(IReadOnlyList<PersonData> people, string personId)
     {
         var map = Index(people);
@@ -150,6 +175,11 @@ public static class FamilyGraphEditor
         return Validate(List(map));
     }
 
+    /// <summary>
+    /// Validates the value.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <returns>The outcome for the person datas.</returns>
     public static Result<IReadOnlyList<PersonData>> Validate(IReadOnlyList<PersonData> people)
     {
         var map = Index(people);

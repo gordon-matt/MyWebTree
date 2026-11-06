@@ -6,39 +6,87 @@ namespace MyWebTree.Models;
 /// </summary>
 public sealed record PersonData
 {
+    /// <summary>
+    /// Gets or sets the identifier.
+    /// </summary>
     public required string Id { get; init; }
 
+    /// <summary>
+    /// Gets or sets the gender.
+    /// </summary>
     public Gender Gender { get; init; }
 
+    /// <summary>
+    /// Gets or sets the first name.
+    /// </summary>
     public string FirstName { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the last name.
+    /// </summary>
     public string LastName { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the birth date.
+    /// </summary>
     public PartialDate? BirthDate { get; init; }
 
+    /// <summary>
+    /// Gets or sets the death date.
+    /// </summary>
     public PartialDate? DeathDate { get; init; }
 
+    /// <summary>
+    /// Gets or sets the birth place.
+    /// </summary>
     public string? BirthPlace { get; init; }
 
+    /// <summary>
+    /// Gets or sets the death place.
+    /// </summary>
     public string? DeathPlace { get; init; }
 
+    /// <summary>
+    /// Gets or sets the avatar URL.
+    /// </summary>
     public string? AvatarUrl { get; init; }
 
+    /// <summary>
+    /// Gets or sets the notes.
+    /// </summary>
     public string? Notes { get; init; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether this instance is placeholder.
+    /// </summary>
     public bool IsPlaceholder { get; init; }
 
+    /// <summary>
+    /// Gets or sets the placeholder.
+    /// </summary>
     public PlaceholderKind? Placeholder { get; init; }
 
     /// <summary>The person a placeholder card would be attached to.</summary>
     public string? PlaceholderForId { get; init; }
 
+    /// <summary>
+    /// Gets or sets the parents.
+    /// </summary>
     public IReadOnlyList<string> Parents { get; init; } = [];
 
+    /// <summary>
+    /// Gets or sets the spouses.
+    /// </summary>
     public IReadOnlyList<string> Spouses { get; init; } = [];
 
+    /// <summary>
+    /// Gets or sets the children.
+    /// </summary>
     public IReadOnlyList<string> Children { get; init; } = [];
 
+    /// <summary>
+    /// Gets the display name.
+    /// </summary>
     public string DisplayName
     {
         get
@@ -48,6 +96,9 @@ public sealed record PersonData
         }
     }
 
+    /// <summary>
+    /// Gets the initials.
+    /// </summary>
     public string Initials
     {
         get
@@ -63,6 +114,9 @@ public sealed record PersonData
         }
     }
 
+    /// <summary>
+    /// Gets the lifespan.
+    /// </summary>
     public string Lifespan
     {
         get

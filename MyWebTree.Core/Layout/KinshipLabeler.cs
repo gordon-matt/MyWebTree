@@ -5,6 +5,12 @@ namespace MyWebTree.Layout;
 /// <summary>Short labels ("Sister", "Grandfather") for the people drawn around the focus person.</summary>
 public static class KinshipLabeler
 {
+    /// <summary>
+    /// Gets the label.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <param name="focusId">The focus identifier.</param>
+    /// <returns>The label.</returns>
     public static IReadOnlyDictionary<string, string> Label(IReadOnlyDictionary<string, PersonData> people, string focusId)
     {
         var labels = new Dictionary<string, string>(StringComparer.Ordinal);

@@ -5,10 +5,20 @@ namespace MyWebTree.Graph;
 /// <summary>A fictional four-generation family used by the demo and the layout tests.</summary>
 public static class SampleFamily
 {
+    /// <summary>
+    /// The focus identifier constant.
+    /// </summary>
     public const string FocusId = "david";
 
+    /// <summary>
+    /// The name constant.
+    /// </summary>
     public const string Name = "Ward family";
 
+    /// <summary>
+    /// Creates the value.
+    /// </summary>
+    /// <returns>The person datas.</returns>
     public static IReadOnlyList<PersonData> Create()
     {
         var people = new Dictionary<string, PersonData>(StringComparer.Ordinal);

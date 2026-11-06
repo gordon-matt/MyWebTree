@@ -3,6 +3,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MyWebTree.Data.Sql;
 
+/// <summary>
+/// Provides extension methods for service collections.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)

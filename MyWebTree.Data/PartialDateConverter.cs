@@ -8,5 +8,8 @@ public sealed class PartialDateConverter() : ValueConverter<PartialDate?, string
     date => date == null ? null : date.Value.ToString(),
     text => PartialDate.FromStored(text))
 {
+    /// <summary>
+    /// Gets the instance.
+    /// </summary>
     public static PartialDateConverter Instance { get; } = new();
 }

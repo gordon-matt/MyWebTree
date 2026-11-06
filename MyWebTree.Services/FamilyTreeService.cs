@@ -1,11 +1,19 @@
 namespace MyWebTree.Services;
 
+/// <summary>
+/// Represents the family tree service.
+/// </summary>
 public sealed class FamilyTreeService(
     ILogger<FamilyTreeService> logger,
     IRepository<FamilyTree> trees,
     IRepository<Person> people,
     IRepository<PersonRelationship> relationships) : IFamilyTreeService
 {
+    /// <summary>
+    /// Lists the value.
+    /// </summary>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result is the outcome for the family tree summaries.</returns>
     public async Task<Result<IReadOnlyList<FamilyTreeSummary>>> ListAsync(CancellationToken cancellationToken = default)
     {
         var found = (await trees.FindAsync(new SearchOptions<FamilyTree>
@@ -29,6 +37,12 @@ public sealed class FamilyTreeService(
         return Result<IReadOnlyList<FamilyTreeSummary>>.Success(summaries);
     }
 
+    /// <summary>
+    /// Gets the value.
+    /// </summary>
+    /// <param name="treeId">The tree identifier.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result is the outcome for the family tree detail.</returns>
     public async Task<Result<FamilyTreeDetail>> GetAsync(int treeId, CancellationToken cancellationToken = default)
     {
         var tree = await trees.FindOneAsync(treeId);
@@ -53,6 +67,13 @@ public sealed class FamilyTreeService(
         return Result<FamilyTreeDetail>.Success(ToDetail(tree, members, links));
     }
 
+    /// <summary>
+    /// Creates the value.
+    /// </summary>
+    /// <param name="name">The name.</param>
+    /// <param name="description">The description.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result is the outcome for the family tree detail.</returns>
     public async Task<Result<FamilyTreeDetail>> CreateAsync(string name, string? description, CancellationToken cancellationToken = default)
     {
         var validated = CleanName(name);
@@ -80,6 +101,13 @@ public sealed class FamilyTreeService(
         return await GetAsync(saved.Id, cancellationToken);
     }
 
+    /// <summary>
+    /// Renames the value.
+    /// </summary>
+    /// <param name="treeId">The tree identifier.</param>
+    /// <param name="name">The name.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result is the outcome for the family tree detail.</returns>
     public async Task<Result<FamilyTreeDetail>> RenameAsync(int treeId, string name, CancellationToken cancellationToken = default)
     {
         var validated = CleanName(name);
@@ -100,6 +128,12 @@ public sealed class FamilyTreeService(
         return await GetAsync(treeId, cancellationToken);
     }
 
+    /// <summary>
+    /// Deletes the value.
+    /// </summary>
+    /// <param name="treeId">The tree identifier.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the result.</returns>
     public async Task<Result> DeleteAsync(int treeId, CancellationToken cancellationToken = default)
     {
         var tree = await trees.FindOneAsync(treeId);
@@ -119,6 +153,14 @@ public sealed class FamilyTreeService(
         return Result.Success();
     }
 
+    /// <summary>
+    /// Saves the value.
+    /// </summary>
+    /// <param name="treeId">The tree identifier.</param>
+    /// <param name="peopleGraph">The people graph.</param>
+    /// <param name="focusPersonId">The focus person identifier.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result is the outcome for the family tree detail.</returns>
     public async Task<Result<FamilyTreeDetail>> SaveAsync(
         int treeId,
         IReadOnlyList<PersonData> peopleGraph,
@@ -221,6 +263,11 @@ public sealed class FamilyTreeService(
         return await GetAsync(treeId, cancellationToken);
     }
 
+    /// <summary>
+    /// Creates the sample.
+    /// </summary>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result is the outcome for the family tree detail.</returns>
     public async Task<Result<FamilyTreeDetail>> CreateSampleAsync(CancellationToken cancellationToken = default)
     {
         var created = await CreateAsync(SampleFamily.Name, "Four generations of a fictional family.", cancellationToken);

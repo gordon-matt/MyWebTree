@@ -5,6 +5,11 @@ namespace MyWebTree.Services;
 /// </summary>
 public static class ResultExtensions
 {
+    /// <summary>
+    /// Determines whether this instance is success status.
+    /// </summary>
+    /// <param name="result">The result.</param>
+    /// <returns>true when the condition is met; otherwise, false.</returns>
     public static bool IsSuccessStatus(this IResult result) =>
         result.Status is ResultStatus.Ok or ResultStatus.Created or ResultStatus.NoContent;
 
@@ -37,6 +42,11 @@ public static class ResultExtensions
         };
     }
 
+    /// <summary>
+    /// Gets the display message.
+    /// </summary>
+    /// <param name="result">The result.</param>
+    /// <returns>The display message.</returns>
     public static string GetDisplayMessage(this IResult result)
     {
         string? first = result.Errors?.FirstOrDefault();

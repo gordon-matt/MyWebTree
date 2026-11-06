@@ -10,6 +10,9 @@ using MyWebTree.Services;
 
 namespace MyWebTree.Components;
 
+/// <summary>
+/// Represents the family tree.
+/// </summary>
 public partial class FamilyTree : ComponentBase, IAsyncDisposable
 {
     private readonly List<Snapshot> undo = [];
@@ -52,21 +55,39 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private TreeOrientation orientation = TreeOrientation.Vertical;
     private TreeOrientation orientationFromHost = TreeOrientation.Vertical;
 
+    /// <summary>
+    /// Gets or sets the js.
+    /// </summary>
     [Inject]
     public IJSRuntime JS { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the people.
+    /// </summary>
     [Parameter]
     public IReadOnlyList<PersonData> People { get; set; } = [];
 
+    /// <summary>
+    /// Gets or sets the focus person identifier.
+    /// </summary>
     [Parameter]
     public string? FocusPersonId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the changed.
+    /// </summary>
     [Parameter]
     public EventCallback<FamilyTreeChange> Changed { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether this instance is editable.
+    /// </summary>
     [Parameter]
     public bool Editable { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the theme.
+    /// </summary>
     [Parameter]
     public string Theme { get; set; } = "auto";
 
@@ -108,12 +129,21 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     [Parameter]
     public EventCallback<TreeView> ViewChanged { get; set; }
 
+    /// <summary>
+    /// Gets or sets the height.
+    /// </summary>
     [Parameter]
     public string Height { get; set; } = "720px";
 
+    /// <summary>
+    /// Gets or sets the class.
+    /// </summary>
     [Parameter]
     public string? Class { get; set; }
 
+    /// <summary>
+    /// Gets or sets the error.
+    /// </summary>
     [Parameter]
     public string? Error { get; set; }
 
@@ -125,6 +155,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     [Parameter]
     public EventCallback<PersonData> OnOpenPerson { get; set; }
 
+    /// <summary>
+    /// Gets or sets the open person text.
+    /// </summary>
     [Parameter]
     public string OpenPersonText { get; set; } = "Open";
 
@@ -135,6 +168,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     [Parameter]
     public Func<AvatarRequest, Task<string?>>? ChooseAvatar { get; set; }
 
+    /// <summary>
+    /// Gets or sets the additional attributes.
+    /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
@@ -198,6 +234,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private int ZoomPercent => (int)Math.Round(scale * 100);
 
+    /// <inheritdoc/>
     protected override void OnParametersSet()
     {
         if (Lineage != lineageFromHost)
@@ -247,6 +284,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         TrackSelection();
     }
 
+    /// <inheritdoc/>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -280,6 +318,10 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Handles the viewport resize event.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     [JSInvokable]
     public async Task OnViewportResize()
     {
@@ -298,6 +340,10 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Releases the resources used by this instance.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     public async ValueTask DisposeAsync()
     {
         if (module is not null)
@@ -606,6 +652,11 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Performs the center on operation.
+    /// </summary>
+    /// <param name="personId">The person identifier.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     public Task CenterOnAsync(string personId)
     {
         if (string.IsNullOrWhiteSpace(personId) || People.All(person => person.Id != personId))
@@ -875,6 +926,12 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private void PanEnd(PointerEventArgs e) => dragging = false;
 
+    /// <summary>
+    /// Applies the view.
+    /// </summary>
+    /// <param name="x">The x.</param>
+    /// <param name="y">The y.</param>
+    /// <param name="nextScale">The next scale.</param>
     [JSInvokable]
     public void ApplyView(double x, double y, double nextScale)
     {

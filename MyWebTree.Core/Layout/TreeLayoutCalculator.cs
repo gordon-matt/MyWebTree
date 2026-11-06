@@ -9,14 +9,35 @@ namespace MyWebTree.Layout;
 /// </summary>
 public static class TreeLayoutCalculator
 {
+    /// <summary>
+    /// The card width constant.
+    /// </summary>
     public const double CardWidth = 232;
+    /// <summary>
+    /// The card height constant.
+    /// </summary>
     public const double CardHeight = 84;
+    /// <summary>
+    /// The spouse gap constant.
+    /// </summary>
     public const double SpouseGap = 28;
+    /// <summary>
+    /// The sibling gap constant.
+    /// </summary>
     public const double SiblingGap = 40;
+    /// <summary>
+    /// The level gap constant.
+    /// </summary>
     public const double LevelGap = 78;
 
     private const double Padding = 48;
 
+    /// <summary>
+    /// Calculates the value.
+    /// </summary>
+    /// <param name="people">The people.</param>
+    /// <param name="options">The options.</param>
+    /// <returns>The tree layout result.</returns>
     public static TreeLayoutResult Calculate(IReadOnlyList<PersonData> people, TreeLayoutOptions? options = null)
     {
         options ??= new TreeLayoutOptions();
