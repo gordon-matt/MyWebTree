@@ -74,6 +74,19 @@ public enum LinkKind
     Child,
 }
 
+/// <summary>How a child came to be parented by one set of parents. Only these three are supported.</summary>
+public enum ParentageType
+{
+    /// <summary>The parents the child was born to.</summary>
+    Birth = 0,
+
+    /// <summary>The parents who legally adopted the child.</summary>
+    Adopted = 1,
+
+    /// <summary>The parents who fostered the child.</summary>
+    Foster = 2,
+}
+
 /// <summary>A dashed card the layout inserts so a missing relative can be added in place.</summary>
 public enum PlaceholderKind
 {

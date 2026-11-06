@@ -70,9 +70,16 @@ public sealed record PersonData
     public string? PlaceholderForId { get; init; }
 
     /// <summary>
-    /// Gets or sets the parents.
+    /// Gets or sets the parents. When <see cref="ParentSets"/> is used this always equals the members of the
+    /// primary set, and a host should treat it as read-only derived data.
     /// </summary>
     public IReadOnlyList<string> Parents { get; init; } = [];
+
+    /// <summary>
+    /// Gets or sets every set of parents this person has. A host that only knows <see cref="Parents"/> can leave
+    /// this empty: <see cref="Parents"/> is then read as one primary <see cref="ParentageType.Birth"/> set.
+    /// </summary>
+    public IReadOnlyList<ParentSetData> ParentSets { get; init; } = [];
 
     /// <summary>
     /// Gets or sets the spouses.
@@ -80,7 +87,8 @@ public sealed record PersonData
     public IReadOnlyList<string> Spouses { get; init; } = [];
 
     /// <summary>
-    /// Gets or sets the children.
+    /// Gets or sets the children. This lists every child the person has in any set, whether the child's
+    /// set with them is birth, adopted, or foster. The child's own <see cref="ParentSets"/> says which kind.
     /// </summary>
     public IReadOnlyList<string> Children { get; init; } = [];
 

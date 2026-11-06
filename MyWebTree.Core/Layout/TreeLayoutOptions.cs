@@ -28,6 +28,15 @@ public sealed record TreeLayoutOptions
     public bool ShowPlaceholders { get; init; }
 
     /// <summary>
+    /// The set of parents to draw for each person, as person id to set id. A missing or stale entry means the
+    /// primary set. Changing it changes the drawing, not the data.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? ActiveParentSets { get; init; }
+
+    /// <summary>Hides adopted and foster links, and everyone reachable only through them.</summary>
+    public bool BloodRelativesOnly { get; init; }
+
+    /// <summary>
     /// Gets or sets the orientation.
     /// </summary>
     public TreeOrientation Orientation { get; init; } = TreeOrientation.Vertical;

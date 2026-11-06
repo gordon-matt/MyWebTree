@@ -98,6 +98,12 @@ public sealed record AddRelativeRequest
     /// Gets or sets the person.
     /// </summary>
     public required PersonWriteModel Person { get; init; }
+
+    /// <summary>
+    /// Which set of parents a new father or mother joins. Leave it null to use the person's primary set,
+    /// or to start a primary birth set when they have none.
+    /// </summary>
+    public ParentSetTarget? ParentSet { get; init; }
 }
 
 /// <summary>Why <see cref="FamilyTreeChange"/> was raised, so a host can save one edit instead of replacing the graph.</summary>
@@ -131,16 +137,37 @@ Linked,
 
 /// <summary>The centered person changed. Nobody's data changed.</summary>
 FocusChanged,
+
+/// <summary>
+/// A new set of parents was added to <see cref="FamilyTreeChange.PersonId"/> (the child).
+/// <see cref="FamilyTreeChange.ParentSetId"/> and <see cref="FamilyTreeChange.Type"/> describe it.
+/// </summary>
+ParentSetAdded,
+
+/// <summary>
+/// The type, the date, or the primary flag of a set of parents changed. <see cref="FamilyTreeChange.PersonId"/> is the child.
+/// When another set stopped being primary, read it from <see cref="FamilyTreeChange.People"/>.
+/// </summary>
+ParentSetUpdated,
+
+/// <summary>A whole set of parents was removed from <see cref="FamilyTreeChange.PersonId"/> (the child). The parents stay.</summary>
+ParentSetRemoved,
 }
 
-/// <summary>What the tree UI hands back after an edit, an undo, or a change of focus.</summary>
+/// <summary>
+/// What the tree UI hands back after an edit, an undo, or a change of focus.
+/// <see cref="ParentSetId"/> and <see cref="Type"/> are filled for <see cref="FamilyTreeChangeKind.Linked"/> and
+/// <see cref="FamilyTreeChangeKind.Unlinked"/> when the link is a parent link, and for the three <c>ParentSet*</c> kinds.
+/// </summary>
 public sealed record FamilyTreeChange(
     IReadOnlyList<PersonData> People,
     string? FocusPersonId,
     FamilyTreeChangeKind Kind = FamilyTreeChangeKind.Snapshot,
     string? PersonId = null,
     string? OtherPersonId = null,
-    LinkKind? Link = null);
+    LinkKind? Link = null,
+    string? ParentSetId = null,
+    ParentageType? Type = null);
 
 /// <summary>Generations of ancestors and descendants the tree is showing. Raised when the user changes either.</summary>
 public sealed record TreeDepths(int Ancestry, int Progeny);

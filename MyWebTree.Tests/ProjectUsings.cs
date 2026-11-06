@@ -3,3 +3,4 @@ global using MyWebTree;
 global using MyWebTree.Graph;
 global using MyWebTree.Layout;
 global using MyWebTree.Models;
+global using MyWebTree.Services;

@@ -32,6 +32,9 @@ public static class TreeLayoutCalculator
 
     private const double Padding = 48;
 
+    /// <summary>How far apart two buses of the same couple sit, so a birth and an adopted family can each be seen.</summary>
+    private const double BusSpacing = 14;
+
     /// <summary>
     /// Calculates the value.
     /// </summary>
@@ -41,13 +44,16 @@ public static class TreeLayoutCalculator
     public static TreeLayoutResult Calculate(IReadOnlyList<PersonData> people, TreeLayoutOptions? options = null)
     {
         options ??= new TreeLayoutOptions();
+        var nodes = TreeProjection.Build(
+            people,
+            options.ActiveParentSets,
+            new ProjectionOptions { BloodRelativesOnly = options.BloodRelativesOnly });
+        var meta = new Dictionary<string, ProjectedNode>(StringComparer.Ordinal);
         var map = new Dictionary<string, PersonData>(StringComparer.Ordinal);
-        foreach (var person in people)
+        foreach (var node in nodes)
         {
-            if (!string.IsNullOrWhiteSpace(person.Id) && !person.IsPlaceholder)
-            {
-                map[person.Id] = person;
-            }
+            meta[node.Person.Id] = node;
+            map[node.Person.Id] = node.Person;
         }
 
         if (map.Count == 0)
@@ -128,9 +134,39 @@ public static class TreeLayoutCalculator
         }
 
         Normalize(cards, out double width, out double height);
-        var links = BuildLinks(cards, map, horizontal);
+        var links = BuildLinks(cards, map, meta, horizontal);
         var kinship = KinshipLabeler.Label(map, focusId);
-        return new TreeLayoutResult(focusId, cards, links, kinship, width, height);
+        return new TreeLayoutResult(focusId, Annotate(cards, meta), links, kinship, width, height);
+    }
+
+    /// <summary>Adds what the UI needs to know about each card: stub or not, the real person, and the set drawn above it.</summary>
+    private static List<TreeCard> Annotate(List<TreeCard> cards, Dictionary<string, ProjectedNode> meta)
+    {
+        var annotated = new List<TreeCard>(cards.Count);
+        foreach (var card in cards)
+        {
+            annotated.Add(meta.TryGetValue(card.Id, out var node)
+                ? card with
+                {
+                    IsStub = node.IsStub,
+                    PersonId = node.PersonId,
+                    ParentType = node.ParentType,
+                    ParentSetId = node.ParentSetId,
+                    ParentSetCount = node.ParentSetCount,
+                }
+                : card);
+        }
+
+        var drawn = annotated.Where(card => !card.IsStub && card.PersonId is not null).Select(card => card.PersonId!).ToHashSet(StringComparer.Ordinal);
+        for (int i = 0; i < annotated.Count; i++)
+        {
+            if (annotated[i].IsStub && annotated[i].PersonId is { } id && drawn.Contains(id))
+            {
+                annotated[i] = annotated[i] with { SeeAlso = true };
+            }
+        }
+
+        return annotated;
     }
 
     private static void AddPlaceholders(Dictionary<string, PersonData> map, string focusId)
@@ -686,7 +722,11 @@ public static class TreeLayoutCalculator
         height = cards.Max(card => card.Y) + CardHeight + Padding;
     }
 
-    private static List<TreeLink> BuildLinks(List<TreeCard> cards, Dictionary<string, PersonData> map, bool horizontal)
+    private static List<TreeLink> BuildLinks(
+        List<TreeCard> cards,
+        Dictionary<string, PersonData> map,
+        Dictionary<string, ProjectedNode> meta,
+        bool horizontal)
     {
         var links = new List<TreeLink>();
         var cardOf = new Dictionary<string, TreeCard>(StringComparer.Ordinal);
@@ -721,7 +761,9 @@ public static class TreeLayoutCalculator
             }
         }
 
-        var groups = new Dictionary<string, List<TreeCard>>(StringComparer.Ordinal);
+        // One bus for each family and type. A couple with a birth child and an adopted child get two buses, so each
+        // can be drawn in its own style.
+        var groups = new Dictionary<(string Key, ParentageType Type), List<TreeCard>>();
         foreach (var card in cards)
         {
             if (!map.TryGetValue(card.Id, out var person))
@@ -735,7 +777,8 @@ public static class TreeLayoutCalculator
                 continue;
             }
 
-            string key = string.Join('|', parentIds);
+            var type = meta.TryGetValue(card.Id, out var node) ? node.ParentType : ParentageType.Birth;
+            var key = (string.Join('|', parentIds), type);
             if (!groups.TryGetValue(key, out var children))
             {
                 groups[key] = children = [];
@@ -744,7 +787,8 @@ public static class TreeLayoutCalculator
             children.Add(card);
         }
 
-        foreach (var (key, children) in groups)
+        var buses = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var ((key, type), children) in groups.OrderBy(group => group.Key.Type))
         {
             var parents = key.Split('|').Select(id => cardOf[id]).ToList();
             bool forward = horizontal
@@ -755,8 +799,10 @@ public static class TreeLayoutCalculator
                 continue;
             }
 
+            buses.TryGetValue(key, out int index);
+            buses[key] = index + 1;
             bool dashed = parents.Concat(children).Any(card => map.TryGetValue(card.Id, out var person) && person.IsPlaceholder);
-            links.AddRange(ParentLinks(parents, children, horizontal, dashed));
+            links.AddRange(ParentLinks(parents, children, horizontal, dashed, type, index * BusSpacing));
         }
 
         return links;
@@ -793,13 +839,24 @@ public static class TreeLayoutCalculator
         return new TreeLink(top.X + (CardWidth / 2), top.Y + CardHeight, bottom.X + (CardWidth / 2), bottom.Y, dashed);
     }
 
-    private static IEnumerable<TreeLink> ParentLinks(List<TreeCard> parents, List<TreeCard> children, bool horizontal, bool dashed)
+    private static IEnumerable<TreeLink> ParentLinks(
+        List<TreeCard> parents,
+        List<TreeCard> children,
+        bool horizontal,
+        bool dashed,
+        ParentageType type,
+        double busOffset)
     {
         if (horizontal)
         {
             double parentRight = parents.Max(parent => parent.X + CardWidth);
             double childLeft = children.Min(child => child.X);
             double busX = parentRight + ((childLeft - parentRight) * 0.45);
+            if (busOffset > 0)
+            {
+                busX = Math.Min(busX + busOffset, childLeft - 4);
+            }
+
             double top = parents.Min(parent => parent.Y + (CardHeight / 2));
             double bottom = parents.Max(parent => parent.Y + (CardHeight / 2));
             foreach (var child in children)
@@ -810,17 +867,17 @@ public static class TreeLayoutCalculator
 
             foreach (var parent in parents)
             {
-                yield return new TreeLink(parent.X + CardWidth, parent.Y + (CardHeight / 2), busX, parent.Y + (CardHeight / 2), dashed);
+                yield return new TreeLink(parent.X + CardWidth, parent.Y + (CardHeight / 2), busX, parent.Y + (CardHeight / 2), dashed, type);
             }
 
             if (bottom - top > 1)
             {
-                yield return new TreeLink(busX, top, busX, bottom, dashed);
+                yield return new TreeLink(busX, top, busX, bottom, dashed, type);
             }
 
             foreach (var child in children)
             {
-                yield return new TreeLink(busX, child.Y + (CardHeight / 2), child.X, child.Y + (CardHeight / 2), dashed);
+                yield return new TreeLink(busX, child.Y + (CardHeight / 2), child.X, child.Y + (CardHeight / 2), dashed, type);
             }
 
             yield break;
@@ -829,6 +886,11 @@ public static class TreeLayoutCalculator
         double parentBottom = parents.Max(parent => parent.Y + CardHeight);
         double childTop = children.Min(child => child.Y);
         double busY = parentBottom + ((childTop - parentBottom) * 0.45);
+        if (busOffset > 0)
+        {
+            busY = Math.Min(busY + busOffset, childTop - 4);
+        }
+
         double left = parents.Min(parent => parent.X + (CardWidth / 2));
         double right = parents.Max(parent => parent.X + (CardWidth / 2));
         foreach (var child in children)
@@ -839,17 +901,17 @@ public static class TreeLayoutCalculator
 
         foreach (var parent in parents)
         {
-            yield return new TreeLink(parent.X + (CardWidth / 2), parent.Y + CardHeight, parent.X + (CardWidth / 2), busY, dashed);
+            yield return new TreeLink(parent.X + (CardWidth / 2), parent.Y + CardHeight, parent.X + (CardWidth / 2), busY, dashed, type);
         }
 
         if (right - left > 1)
         {
-            yield return new TreeLink(left, busY, right, busY, dashed);
+            yield return new TreeLink(left, busY, right, busY, dashed, type);
         }
 
         foreach (var child in children)
         {
-            yield return new TreeLink(child.X + (CardWidth / 2), busY, child.X + (CardWidth / 2), child.Y, dashed);
+            yield return new TreeLink(child.X + (CardWidth / 2), busY, child.X + (CardWidth / 2), child.Y, dashed, type);
         }
     }
 
