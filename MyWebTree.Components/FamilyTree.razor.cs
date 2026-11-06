@@ -488,12 +488,12 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private static string Part(int? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "";
 
-    private void SelectCard(TreeCard card)
+    private Task SelectCard(TreeCard card)
     {
         if (pendingLink is not null)
         {
             ChooseLinkTarget(card.Id, card.IsPlaceholder);
-            return;
+            return Task.CompletedTask;
         }
 
         selectedId = card.Id;
@@ -503,11 +503,11 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         if (card.IsPlaceholder)
         {
             OpenAdd(card.Placeholder ?? PlaceholderKind.Child, card.RelatesToId);
+            return Task.CompletedTask;
         }
-        else
-        {
-            editor = null;
-        }
+
+        editor = null;
+        return FocusAsync(card.Id);
     }
 
     private Task FocusCardAsync(TreeCard card) =>
@@ -989,7 +989,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         string? otherPersonId = null,
         LinkKind? link = null)
     {
-        if (!applyingHistory)
+        if (!applyingHistory && kind != FamilyTreeChangeKind.FocusChanged)
         {
             undo.Add(new Snapshot(People.ToList(), FocusPersonId));
             if (undo.Count > 40)

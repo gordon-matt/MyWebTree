@@ -225,7 +225,7 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 
 ## Behaviour
 
-- Click a card to select it. Double-click, or Center, to rebuild the tree around them.
+- Click a card to select it and rebuild the tree around them. That is what shows Add father, Add mother, Add spouse, and Add child. Center does the same.
 - Link locks that person. The next card, or a search result, is the other end of the link. Confirm writes it. Cancel, or the same Link button again, unlocks the tree.
 - Search matches name, lifespan, birth place, and death place.
 - Placeholder cards are dashed. Choosing one opens the add form for that relative.
