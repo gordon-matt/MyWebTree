@@ -11,15 +11,14 @@ using MyWebTree.Data.MySql;
 namespace MyWebTree.Data.MySql.Migrations
 {
     [DbContext(typeof(MyWebTreeDbContext))]
-    [Migration("20261106064139_AddParentSets")]
-    partial class AddParentSets
+    [Migration("20261106215320_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("webtree")
                 .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
@@ -53,7 +52,7 @@ namespace MyWebTree.Data.MySql.Migrations
 
                     b.HasIndex("FocusPersonId");
 
-                    b.ToTable("Trees", "webtree");
+                    b.ToTable("MyWebTree_Trees", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
@@ -85,7 +84,7 @@ namespace MyWebTree.Data.MySql.Migrations
 
                     b.HasIndex("TreeId");
 
-                    b.ToTable("ParentSets", "webtree");
+                    b.ToTable("MyWebTree_ParentSets", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.ParentSetMember", b =>
@@ -112,7 +111,7 @@ namespace MyWebTree.Data.MySql.Migrations
                     b.HasIndex("ParentSetId", "ParentPersonId")
                         .IsUnique();
 
-                    b.ToTable("ParentSetMembers", "webtree");
+                    b.ToTable("MyWebTree_ParentSetMembers", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.Person", b =>
@@ -173,7 +172,7 @@ namespace MyWebTree.Data.MySql.Migrations
 
                     b.HasIndex("TreeId");
 
-                    b.ToTable("People", "webtree");
+                    b.ToTable("MyWebTree_People", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.PersonRelationship", b =>
@@ -203,7 +202,7 @@ namespace MyWebTree.Data.MySql.Migrations
                     b.HasIndex("FromPersonId", "ToPersonId", "Kind")
                         .IsUnique();
 
-                    b.ToTable("Relationships", "webtree");
+                    b.ToTable("MyWebTree_Relationships", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.FamilyTree", b =>

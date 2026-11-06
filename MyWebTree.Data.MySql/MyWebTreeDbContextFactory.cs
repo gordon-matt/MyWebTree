@@ -31,7 +31,7 @@ public class MyWebTreeDbContextFactory(string connectionString) : IMyWebTreeDbCo
 
         optionsBuilder.UseMySQL(connectionString, mySql => mySql
             .MigrationsAssembly(typeof(MyWebTreeDbContext).Assembly.GetName().Name)
-            .MigrationsHistoryTable(Constants.MigrationsHistoryTable, Constants.Schema));
+            .MigrationsHistoryTable(Constants.MigrationsHistoryTable));
 
         return optionsBuilder.Options;
     }

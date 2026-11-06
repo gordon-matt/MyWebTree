@@ -25,7 +25,7 @@ MyWebTree does not authenticate anyone and does not know about profile pages, up
 | Project | Purpose |
 | --- | --- |
 | `MyWebTree.Core` | `PersonData`, `PartialDate`, `FamilyGraphEditor`, and the layout calculator. Depends on Ardalis.Result. |
-| `MyWebTree.Data` | Entities and the EF Core model. Tables live in the `webtree` schema. |
+| `MyWebTree.Data` | Entities and the EF Core model. Tables live in the `webtree` schema, or carry a `MyWebTree_` prefix on MySQL and SQLite. |
 | `MyWebTree.Data.Sqlite` | SQLite. Register it with `AddMyWebTreeSqlite()`. |
 | `MyWebTree.Data.Sql` | SQL Server. Register it with `AddMyWebTreeSqlServer()`. |
 | `MyWebTree.Data.Npgsql` | PostgreSQL. Register it with `AddMyWebTreeNpgsql()`. |
@@ -101,7 +101,7 @@ Host=localhost;Database=MyWebTree;Username=postgres;Password=postgres
 Server=localhost;Database=MyWebTree;User=root;Password=root
 ```
 
-Those three strings are SQL Server, PostgreSQL, and MySQL. Each of those providers has its own migrations. SQL Server, PostgreSQL, and MySQL create the tables in the `webtree` schema. SQLite has no schemas, so that provider ignores the warning and creates the same tables without one. The migrations history table is `__MyWebTreeMigrationsHistory`, in `webtree` where the provider has schemas, so MyWebTree can share a database with the host.
+Those three strings are SQL Server, PostgreSQL, and MySQL. Each of those providers has its own migrations. SQL Server and PostgreSQL create the tables in the `webtree` schema. MySQL and SQLite have no usable schemas (in MySQL a schema is a database), so those providers prefix the table names with `MyWebTree_` instead. The migrations history table is `__MyWebTreeMigrationsHistory`, in `webtree` where the provider has schemas, so MyWebTree can share a database with the host.
 
 Parameters: `People`, `FocusPersonId`, `Changed`, `Editable` (default `true`), `Theme` (`light`, `dark`, `auto`, `bootstrap`), `Lineage` (`Bilateral` by default, or `Patrilineal`), `ShowSiblings` (default `false`), `Orientation` (`Vertical` by default, or `Horizontal`), `AncestryDepth` and `ProgenyDepth` (generations shown above and below the focus person; `4` by default), `MaxGenerations` (the most the toolbar steppers allow; `8` by default), `DepthsChanged`, `ViewChanged`, `BloodRelativesOnly` (default `false`), `ActiveParentSets` and `ActiveParentSetsChanged` (see [Adopted and foster parents](#adopted-and-foster-parents)), `Height` (default `720px`), `Class`, `Error`, `HighlightedPersonId`, `OnOpenPerson`, `OpenPersonText`, and `ChooseAvatar`. The toolbar can change any of those after the tree opens. `ViewChanged` receives a `TreeView` (generations, siblings, lineage, orientation, and blood relatives only) each time, so the host can remember it (for example in local storage) and pass it back through the matching parameters next time. `DepthsChanged` still receives just the two generation counts. Other attributes are passed to the outer element.
 

@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace MyWebTree.Data.Sqlite;
 
@@ -34,10 +33,7 @@ public class MyWebTreeDbContextFactory(string connectionString) : IMyWebTreeDbCo
 
         optionsBuilder.UseSqlite(Prepare(connectionString), sqlite => sqlite
             .MigrationsAssembly(typeof(MyWebTreeDbContext).Assembly.GetName().Name)
-            .MigrationsHistoryTable(Constants.MigrationsHistoryTable, Constants.Schema));
-
-        // SQLite has no schemas. HasDefaultSchema("webtree") only names the tables; the warning is noise.
-        optionsBuilder.ConfigureWarnings(w => w.Ignore(SqliteEventId.SchemaConfiguredWarning));
+            .MigrationsHistoryTable(Constants.MigrationsHistoryTable));
 
         return optionsBuilder.Options;
     }

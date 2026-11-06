@@ -4,136 +4,192 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MyWebTree.Data.MySql;
+using MyWebTree.Data.Sqlite;
 
 #nullable disable
 
-namespace MyWebTree.Data.MySql.Migrations
+namespace MyWebTree.Data.Sqlite.Migrations
 {
     [DbContext(typeof(MyWebTreeDbContext))]
-    [Migration("20261023230435_Initial")]
-    partial class Initial
+    [Migration("20261106215335_UseTablePrefix")]
+    partial class UseTablePrefix
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasDefaultSchema("webtree")
-                .HasAnnotation("ProductVersion", "10.0.13")
-                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
             modelBuilder.Entity("MyWebTree.Data.Entities.FamilyTree", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("FocusPersonId")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(120)");
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("FocusPersonId");
 
-                    b.ToTable("Trees", "webtree");
+                    b.ToTable("MyWebTree_Trees", (string)null);
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChildPersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Date")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TreeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChildPersonId");
+
+                    b.HasIndex("TreeId");
+
+                    b.ToTable("MyWebTree_ParentSets", (string)null);
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSetMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ParentPersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ParentSetId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TreeId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentPersonId");
+
+                    b.HasIndex("TreeId");
+
+                    b.HasIndex("ParentSetId", "ParentPersonId")
+                        .IsUnique();
+
+                    b.ToTable("MyWebTree_ParentSetMembers", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.Person", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(500)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("BirthDate")
                         .HasMaxLength(10)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(10)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("BirthPlace")
                         .HasMaxLength(200)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("DeathDate")
                         .HasMaxLength(10)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(10)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("DeathPlace")
                         .HasMaxLength(200)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Gender")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)
                         .IsUnicode(true)
-                        .HasColumnType("varchar(4000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("TreeId")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.HasIndex("TreeId");
 
-                    b.ToTable("People", "webtree");
+                    b.ToTable("MyWebTree_People", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.PersonRelationship", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("FromPersonId")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Kind")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("ToPersonId")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("TreeId")
-                        .HasColumnType("int");
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -144,7 +200,7 @@ namespace MyWebTree.Data.MySql.Migrations
                     b.HasIndex("FromPersonId", "ToPersonId", "Kind")
                         .IsUnique();
 
-                    b.ToTable("Relationships", "webtree");
+                    b.ToTable("MyWebTree_Relationships", (string)null);
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.FamilyTree", b =>
@@ -155,6 +211,36 @@ namespace MyWebTree.Data.MySql.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("FocusPerson");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
+                {
+                    b.HasOne("MyWebTree.Data.Entities.Person", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSetMember", b =>
+                {
+                    b.HasOne("MyWebTree.Data.Entities.Person", "ParentPerson")
+                        .WithMany()
+                        .HasForeignKey("ParentPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyWebTree.Data.Entities.ParentSet", "ParentSet")
+                        .WithMany("Members")
+                        .HasForeignKey("ParentSetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ParentPerson");
+
+                    b.Navigation("ParentSet");
                 });
 
             modelBuilder.Entity("MyWebTree.Data.Entities.Person", b =>
@@ -190,6 +276,11 @@ namespace MyWebTree.Data.MySql.Migrations
             modelBuilder.Entity("MyWebTree.Data.Entities.FamilyTree", b =>
                 {
                     b.Navigation("People");
+                });
+
+            modelBuilder.Entity("MyWebTree.Data.Entities.ParentSet", b =>
+                {
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

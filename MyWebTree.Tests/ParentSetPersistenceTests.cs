@@ -123,8 +123,8 @@ public class ParentSetPersistenceTests
         Assert.True((await database.Trees.DeleteAsync(tree.Id, Token)).IsSuccess);
 
         await using var context = database.GetContext();
-        Assert.Equal(0, await context.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"ParentSets\"").SingleAsync(Token));
-        Assert.Equal(0, await context.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"ParentSetMembers\"").SingleAsync(Token));
+        Assert.Equal(0, await context.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"MyWebTree_ParentSets\"").SingleAsync(Token));
+        Assert.Equal(0, await context.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"MyWebTree_ParentSetMembers\"").SingleAsync(Token));
     }
 
     [Fact]
@@ -167,6 +167,6 @@ public class ParentSetPersistenceTests
         Assert.Equal(["3", "4"], mum.Children.Order());
 
         await using var check = database.GetContext();
-        Assert.Equal(0, await check.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"Relationships\" WHERE \"Kind\" = 0").SingleAsync(Token));
+        Assert.Equal(0, await check.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"MyWebTree_Relationships\" WHERE \"Kind\" = 0").SingleAsync(Token));
     }
 }
