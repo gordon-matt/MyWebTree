@@ -47,6 +47,11 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private bool selectionReady;
     private bool applyingHistory;
     private bool confirmDelete;
+    private string? unlinkOtherId;
+    private LinkKind? pendingLink;
+    private string? linkAnchorId;
+    private string? linkTargetId;
+    private bool confirmLink;
     private double panX;
     private double panY = 24;
     private double scale = 1;
@@ -397,6 +402,21 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         knownIds.Clear();
         knownIds.UnionWith(incoming);
+
+        if (linkAnchorId is not null && !incoming.Contains(linkAnchorId))
+        {
+            CancelLink();
+        }
+
+        if (linkTargetId is not null && !incoming.Contains(linkTargetId))
+        {
+            CancelLinkTarget();
+        }
+
+        if (unlinkOtherId is not null && (selectedId is null || !incoming.Contains(unlinkOtherId)))
+        {
+            unlinkOtherId = null;
+        }
     }
 
     private PersonData? Person(string id) => People.FirstOrDefault(person => person.Id == id);
@@ -423,11 +443,27 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         string selected = card.Id == selectedId ? " mwt-selected" : "";
         string marked = !card.IsPlaceholder && card.Id == HighlightedPersonId ? " mwt-marked" : "";
         string placeholder = card.IsPlaceholder ? " mwt-placeholder" : "";
-        return "mwt-card " + tone + focus + selected + marked + placeholder;
+        string anchor = pendingLink is not null && card.Id == linkAnchorId ? " mwt-link-anchor" : "";
+        string target = confirmLink && card.Id == linkTargetId ? " mwt-link-target" : "";
+        return "mwt-card " + tone + focus + selected + marked + placeholder + anchor + target;
     }
 
-    private static string CardTitle(TreeCard card, PersonData? person) =>
-        card.IsPlaceholder ? PlaceholderLabel(card.Placeholder) : person?.DisplayName ?? "Person";
+    private string CardTitle(TreeCard card, PersonData? person)
+    {
+        if (pendingLink is not null && !card.IsPlaceholder && card.Id != linkAnchorId && person is not null)
+        {
+            string name = Anchor?.DisplayName ?? "the selected person";
+            return pendingLink switch
+            {
+                LinkKind.Parent => "Parent of " + name,
+                LinkKind.Spouse => "Spouse of " + name,
+                LinkKind.Child => "Child of " + name,
+                _ => person.DisplayName,
+            };
+        }
+
+        return card.IsPlaceholder ? PlaceholderLabel(card.Placeholder) : person?.DisplayName ?? "Person";
+    }
 
     private static string PlaceholderLabel(PlaceholderKind? kind) => kind switch
     {
@@ -454,8 +490,15 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private void SelectCard(TreeCard card)
     {
+        if (pendingLink is not null)
+        {
+            ChooseLinkTarget(card.Id, card.IsPlaceholder);
+            return;
+        }
+
         selectedId = card.Id;
         confirmDelete = false;
+        unlinkOtherId = null;
         formError = null;
         if (card.IsPlaceholder)
         {
@@ -468,7 +511,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     }
 
     private Task FocusCardAsync(TreeCard card) =>
-        card.IsPlaceholder ? Task.CompletedTask : FocusAsync(card.Id);
+        pendingLink is not null || card.IsPlaceholder ? Task.CompletedTask : FocusAsync(card.Id);
 
     private void AddFirst() => editor = new EditorState();
 
@@ -479,12 +522,16 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return;
         }
 
+        CancelLink();
         confirmDelete = false;
+        unlinkOtherId = null;
         editor = EditorState.From(person);
     }
 
     private void OpenAdd(PlaceholderKind kind, string? relatesTo, Gender? childGender = null)
     {
+        CancelLink();
+        unlinkOtherId = null;
         var anchor = relatesTo is null ? null : People.FirstOrDefault(person => person.Id == relatesTo);
         var relative = kind switch
         {
@@ -546,6 +593,175 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private bool HasParent(PersonData person, Gender gender) =>
         person.Parents.Any(id => People.FirstOrDefault(parent => parent.Id == id)?.Gender == gender);
+
+    private bool CanLink(LinkKind kind)
+    {
+        if (!Editable || Selected is not { } person || People.Count < 2)
+        {
+            return false;
+        }
+
+        return kind != LinkKind.Parent || person.Parents.Count < 2;
+    }
+
+    private string LinkButtonTitle(LinkKind kind) => kind switch
+    {
+        LinkKind.Parent when Selected is { Parents.Count: >= 2 } => "This person already has two parents.",
+        LinkKind.Parent => "Link an existing person as a parent.",
+        LinkKind.Spouse => "Link an existing person as a spouse.",
+        LinkKind.Child => "Link an existing person as a child.",
+        _ => "Link",
+    };
+
+    private PersonData? Anchor => linkAnchorId is null ? null : Person(linkAnchorId);
+
+    private PersonData? LinkTarget => linkTargetId is null ? null : Person(linkTargetId);
+
+    private string LinkPrompt
+    {
+        get
+        {
+            string name = Anchor?.DisplayName ?? "the selected person";
+            return pendingLink switch
+            {
+                LinkKind.Parent => "Click a parent of " + name + " in the tree, or search for them.",
+                LinkKind.Spouse => "Click a spouse of " + name + " in the tree, or search for them.",
+                LinkKind.Child => "Click a child of " + name + " in the tree, or search for them.",
+                _ => "Click the other person.",
+            };
+        }
+    }
+
+    private string LinkConfirmText
+    {
+        get
+        {
+            string anchor = Anchor?.DisplayName ?? "the selected person";
+            string other = LinkTarget?.DisplayName ?? "them";
+            string question = pendingLink switch
+            {
+                LinkKind.Parent => "Make " + other + " a parent of " + anchor + "?",
+                LinkKind.Spouse => "Link " + other + " as a spouse of " + anchor + "?",
+                LinkKind.Child => "Make " + other + " a child of " + anchor + "?",
+                _ => "Link these two?",
+            };
+
+            string? extra = InducedSpouseNote();
+            return extra is null ? question : question + " " + extra;
+        }
+    }
+
+    private string? InducedSpouseNote()
+    {
+        if (pendingLink is not (LinkKind.Parent or LinkKind.Child) || Anchor is not { } anchor || LinkTarget is not { } other)
+        {
+            return null;
+        }
+
+        var child = pendingLink == LinkKind.Child ? other : anchor;
+        var parent = pendingLink == LinkKind.Child ? anchor : other;
+        string? existingId = child.Parents.FirstOrDefault(id => id != parent.Id);
+        if (existingId is null || parent.Spouses.Contains(existingId))
+        {
+            return null;
+        }
+
+        string existingName = Person(existingId)?.DisplayName ?? "the other parent";
+        return "This also records " + parent.DisplayName + " and " + existingName + " as spouses.";
+    }
+
+    private string LinkBar =>
+        confirmLink && LinkTarget is { } target
+            ? "Confirm the link to " + target.DisplayName + " in the side panel."
+            : LinkPrompt;
+
+    private void BeginLink(LinkKind kind)
+    {
+        if (Selected is null)
+        {
+            return;
+        }
+
+        if (pendingLink == kind)
+        {
+            CancelLink();
+            return;
+        }
+
+        if (!CanLink(kind))
+        {
+            return;
+        }
+
+        editor = null;
+        confirmDelete = false;
+        unlinkOtherId = null;
+        formError = null;
+        pendingLink = kind;
+        linkAnchorId = Selected.Id;
+        linkTargetId = null;
+        confirmLink = false;
+    }
+
+    private void ChooseLinkTarget(string id, bool placeholder)
+    {
+        if (placeholder || id == linkAnchorId || People.All(person => person.Id != id))
+        {
+            return;
+        }
+
+        linkTargetId = id;
+        confirmLink = true;
+        confirmDelete = false;
+        unlinkOtherId = null;
+        formError = null;
+    }
+
+    private void CancelLink()
+    {
+        pendingLink = null;
+        linkAnchorId = null;
+        linkTargetId = null;
+        confirmLink = false;
+    }
+
+    private void CancelLinkTarget()
+    {
+        linkTargetId = null;
+        confirmLink = false;
+    }
+
+    private void AskDelete()
+    {
+        CancelLink();
+        unlinkOtherId = null;
+        confirmDelete = true;
+    }
+
+    private void AskUnlink(string otherId)
+    {
+        CancelLink();
+        confirmDelete = false;
+        unlinkOtherId = otherId;
+    }
+
+    private static IEnumerable<(string Label, string Id)> Relatives(PersonData person)
+    {
+        foreach (string id in person.Spouses)
+        {
+            yield return ("Spouse", id);
+        }
+
+        foreach (string id in person.Parents)
+        {
+            yield return ("Parent", id);
+        }
+
+        foreach (string id in person.Children)
+        {
+            yield return ("Child", id);
+        }
+    }
 
     private async Task SaveEditorAsync()
     {
@@ -618,6 +834,28 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         await PublishAsync(result.Value, focus, FamilyTreeChangeKind.Removed, person.Id);
     }
 
+    private async Task ConfirmLinkAsync()
+    {
+        if (pendingLink is not LinkKind kind || linkAnchorId is null || linkTargetId is null || saving)
+        {
+            return;
+        }
+
+        var result = FamilyGraphEditor.Link(People, linkAnchorId, linkTargetId, kind);
+        if (!result.IsSuccess)
+        {
+            formError = result.GetDisplayMessage();
+            CancelLinkTarget();
+            return;
+        }
+
+        string personId = linkAnchorId;
+        string otherId = linkTargetId;
+        CancelLink();
+        formError = null;
+        await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Linked, personId, otherId, kind);
+    }
+
     private async Task UnlinkAsync(string personId, string otherId)
     {
         if (saving)
@@ -633,6 +871,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         }
 
         formError = null;
+        unlinkOtherId = null;
         await PublishAsync(result.Value, FocusPersonId, FamilyTreeChangeKind.Unlinked, personId, otherId);
     }
 
@@ -664,6 +903,8 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return Task.CompletedTask;
         }
 
+        CancelLink();
+        unlinkOtherId = null;
         selectedId = personId;
         editor = null;
         query = string.Empty;
@@ -686,9 +927,17 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private Task JumpToAsync(PersonData person)
     {
+        if (pendingLink is not null)
+        {
+            ChooseLinkTarget(person.Id, placeholder: false);
+            query = string.Empty;
+            return Task.CompletedTask;
+        }
+
         selectedId = person.Id;
         query = string.Empty;
         editor = null;
+        unlinkOtherId = null;
         return FocusAsync(person.Id);
     }
 
@@ -737,7 +986,8 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         string? focus,
         FamilyTreeChangeKind kind = FamilyTreeChangeKind.Snapshot,
         string? personId = null,
-        string? otherPersonId = null)
+        string? otherPersonId = null,
+        LinkKind? link = null)
     {
         if (!applyingHistory)
         {
@@ -753,7 +1003,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         saving = true;
         try
         {
-            await Changed.InvokeAsync(new FamilyTreeChange(next, focus, kind, personId, otherPersonId));
+            await Changed.InvokeAsync(new FamilyTreeChange(next, focus, kind, personId, otherPersonId, link));
         }
         finally
         {

@@ -115,14 +115,22 @@ public enum FamilyTreeChangeKind
     /// <summary><see cref="FamilyTreeChange.PersonId"/> was removed and unlinked. Relatives stay.</summary>
     Removed,
 
-    /// <summary>
-    /// The link between <see cref="FamilyTreeChange.PersonId"/> and <see cref="FamilyTreeChange.OtherPersonId"/> was removed.
-    /// Neither person was deleted.
-    /// </summary>
-    Unlinked,
+/// <summary>
+/// The link between <see cref="FamilyTreeChange.PersonId"/> and <see cref="FamilyTreeChange.OtherPersonId"/> was removed.
+/// Neither person was deleted.
+/// </summary>
+Unlinked,
 
-    /// <summary>The centered person changed. Nobody's data changed.</summary>
-    FocusChanged,
+/// <summary>
+/// A link was added between <see cref="FamilyTreeChange.PersonId"/> (the person who was selected)
+/// and <see cref="FamilyTreeChange.OtherPersonId"/> (the person who was clicked).
+/// <see cref="FamilyTreeChange.Link"/> says how the second person relates to the first.
+/// Nobody was created or deleted.
+/// </summary>
+Linked,
+
+/// <summary>The centered person changed. Nobody's data changed.</summary>
+FocusChanged,
 }
 
 /// <summary>What the tree UI hands back after an edit, an undo, or a change of focus.</summary>
@@ -131,7 +139,8 @@ public sealed record FamilyTreeChange(
     string? FocusPersonId,
     FamilyTreeChangeKind Kind = FamilyTreeChangeKind.Snapshot,
     string? PersonId = null,
-    string? OtherPersonId = null);
+    string? OtherPersonId = null,
+    LinkKind? Link = null);
 
 /// <summary>Generations of ancestors and descendants the tree is showing. Raised when the user changes either.</summary>
 public sealed record TreeDepths(int Ancestry, int Progeny);

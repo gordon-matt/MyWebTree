@@ -12,7 +12,8 @@ Features in this version:
 - Pan, zoom, and fit, with ancestry and descendant depth, a vertical or horizontal layout, and a sibling toggle that starts off
 - Kinship labels from the person the tree is centered on
 - Add a father, mother, spouse, son, or daughter, edit a person, or remove them without removing their relatives
-- Unlink a spouse or a parent and leave both people in the tree
+- Link two people already in the tree as parent, spouse, or child. The first stays selected while the second is chosen, and the tree asks before it writes the link
+- Unlink a spouse, a parent, or a child and leave both people in the tree. Unlink and delete both ask first
 - Undo and redo
 - Partial dates: a year, a year and month, or a full day
 - Light, dark, auto, and Bootstrap-friendly themes
@@ -130,6 +131,7 @@ Map the host's rows to `PersonData` on the way in. Ids are strings, so a placeho
 | `Updated` | Update names, dates, places, picture, and notes on `PersonId`. Links did not change. |
 | `Removed` | Delete `PersonId` and their links. Relatives stay. |
 | `Unlinked` | Remove the link between `PersonId` and `OtherPersonId`. Delete neither person. |
+| `Linked` | Add the link between `PersonId` (who was selected) and `OtherPersonId` (who was clicked). `Link` is `Parent`, `Spouse`, or `Child`, from the first person to the second. Delete neither person. |
 | `FocusChanged` | Remember the centered person. Nobody's data changed. |
 | `Snapshot` | Undo, redo, or any other full replace. Reconcile the host to `People`. |
 
@@ -151,6 +153,9 @@ private async Task OnChanged(FamilyTreeChange change)
             break;
         case FamilyTreeChangeKind.Unlinked:
             await people.UnlinkAsync(change.PersonId!, change.OtherPersonId!);
+            break;
+        case FamilyTreeChangeKind.Linked:
+            await people.LinkAsync(change.PersonId!, change.OtherPersonId!, change.Link);
             break;
         case FamilyTreeChangeKind.FocusChanged:
             focusId = change.FocusPersonId;
@@ -209,15 +214,19 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 
 - A person has at most two parents, and at most one father and one mother.
 - A spouse link and a parent link are stored in both directions.
-- Adding a second parent also links those two parents as spouses.
-- Adding a child of someone with exactly one spouse also links that spouse as the other parent.
-- Nobody can be their own ancestor, or both married to and descended from the same person.
+- Adding a second parent also links those two parents as spouses. Linking an existing person as a second parent does the same.
+- Adding a child of someone with exactly one spouse also links that spouse as the other parent. Linking an existing person as a child does not: that spouse can be linked on their own.
+- A child cannot be born before a parent. A year-only date in the same year is kept, because the missing part is unknown. Editing a date later is held to the same rule.
+- Linking two people as spouses is refused when one died before the other was born.
+- Add father and Add mother still refuse a second parent of that role. Linking a parent only refuses a third parent, so two fathers or two mothers are allowed.
+- Nobody can be their own ancestor, or married to their own descendant.
 - Delete removes the person from every list and leaves the relatives.
-- Unlink removes one spouse or parent link. From the selected person, the side panel lists spouses and parents.
+- Unlink removes one spouse, parent, or child link. From the selected person, the side panel lists spouses, parents, and children.
 
 ## Behaviour
 
 - Click a card to select it. Double-click, or Center, to rebuild the tree around them.
+- Link locks that person. The next card, or a search result, is the other end of the link. Confirm writes it. Cancel, or the same Link button again, unlocks the tree.
 - Search matches name, lifespan, birth place, and death place.
 - Placeholder cards are dashed. Choosing one opens the add form for that relative.
 - Undo keeps the last 40 edits. Undo and redo raise `Changed` with kind `Snapshot`.
@@ -226,7 +235,7 @@ Names can be 200 characters. Places can be 200. The picture address can be 500. 
 
 ## Demo
 
-`MyWebTree.Demo.Blazor` runs at https://localhost:7427. It reads `Database:Provider`, uses SQLite when that setting is missing, seeds the Ward family, and saves through `IFamilyTreeService`.
+`MyWebTree.Demo.Blazor` runs at https://localhost:7427. It reads `Database:Provider`, uses SQLite when that setting is missing, seeds the Ward family, and saves through `IFamilyTreeService`. Reset demo deletes every saved tree and loads the Ward family again.
 
 ## Credits
 

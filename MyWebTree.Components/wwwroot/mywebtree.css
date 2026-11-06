@@ -288,6 +288,9 @@
 .mwt-add .mwt-kicker { margin-bottom: 8px; }
 .mwt-add-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .mwt-add-row .mwt-button { padding: 5px 8px; font-size: 12px; }
+.mwt-link-hint { margin-top: 8px; }
+.mwt-link-hint + .mwt-form-actions,
+.mwt-link-hint + .mwt-confirm { margin-top: 8px; }
 
 .mwt-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .mwt-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 650; color: var(--mwt-muted); }
@@ -396,6 +399,9 @@
 .mwt-card.mwt-focus { box-shadow: 0 0 0 3px var(--mwt-accent-soft); border-color: var(--mwt-accent); }
 .mwt-card.mwt-marked { outline: 2px solid var(--mwt-marked); outline-offset: 2px; }
 .mwt-card.mwt-selected { border-color: var(--mwt-text); }
+.mwt-card.mwt-link-anchor { box-shadow: 0 0 0 3px var(--mwt-accent); border-color: var(--mwt-accent); }
+.mwt-card.mwt-link-target { box-shadow: 0 0 0 3px var(--mwt-accent-soft); border-color: var(--mwt-accent); }
+.mwt-linking .mwt-card.mwt-placeholder { opacity: 0.4; pointer-events: none; }
 
 .mwt-card.mwt-placeholder {
     background: color-mix(in srgb, var(--mwt-surface-raised) 70%, transparent);
@@ -457,6 +463,24 @@
     border: 1px solid var(--mwt-border);
     color: var(--mwt-muted);
     font-size: 12px;
+}
+
+.mwt-link-bar {
+    position: absolute;
+    z-index: 2;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    max-width: min(520px, calc(100% - 120px));
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--mwt-surface-raised);
+    border: 1px solid var(--mwt-accent);
+    color: var(--mwt-text);
+    font-size: 13px;
+    box-shadow: var(--mwt-shadow);
+    pointer-events: none;
+    text-align: center;
 }
 
 @media (max-width: 800px) {

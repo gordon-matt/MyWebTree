@@ -29,8 +29,18 @@
             </select>
         </label>
         <button type="button" @onclick="CreateEmptyAsync">New tree</button>
+        <button type="button" @onclick="() => confirmReset = true">Reset demo</button>
     </div>
 </div>
+
+@if (confirmReset)
+{
+    <p class="demo-confirm">
+        This deletes every tree and loads the Ward family again.
+        <button type="button" disabled="@resetting" @onclick="ResetDemoAsync">Reset</button>
+        <button type="button" disabled="@resetting" @onclick="() => confirmReset = false">Cancel</button>
+    </p>
+}
 
 @if (!string.IsNullOrWhiteSpace(error))
 {
@@ -55,6 +65,8 @@ else
     private FamilyTreeDetail? detail;
     private string theme = "auto";
     private string? error;
+    private bool confirmReset;
+    private bool resetting;
 
     protected override async Task OnInitializedAsync() => await LoadAsync(preferredId: null);
 
@@ -138,5 +150,44 @@ else
         }
 
         await LoadAsync(created.Value.Id);
+    }
+
+    private async Task ResetDemoAsync()
+    {
+        if (resetting)
+        {
+            return;
+        }
+
+        resetting = true;
+        try
+        {
+            foreach (var summary in summaries.ToList())
+            {
+                var deleted = await Trees.DeleteAsync(summary.Id);
+                if (!deleted.IsSuccess)
+                {
+                    error = deleted.GetDisplayMessage();
+                    await LoadAsync(preferredId: null);
+                    return;
+                }
+            }
+
+            var sample = await Trees.CreateSampleAsync();
+            if (!sample.IsSuccess)
+            {
+                error = sample.GetDisplayMessage();
+                await LoadAsync(preferredId: null);
+                return;
+            }
+
+            error = null;
+            confirmReset = false;
+            await LoadAsync(sample.Value.Id);
+        }
+        finally
+        {
+            resetting = false;
+        }
     }
 }

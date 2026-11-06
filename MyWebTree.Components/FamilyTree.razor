@@ -1,4 +1,4 @@
-<div class="mwt-root @Class" data-theme="@Theme" style="@RootStyle" @attributes="AdditionalAttributes">
+<div class="mwt-root @Class @(pendingLink is not null ? "mwt-linking" : null)" data-theme="@Theme" style="@RootStyle" @attributes="AdditionalAttributes">
     <div class="mwt-shell">
         <aside class="mwt-panel">
             <div class="mwt-panel-head">
@@ -117,7 +117,7 @@
                         {
                             <button type="button" class="mwt-icon-button" title="Edit" aria-label="Edit" @onclick="EditSelected"><Icon Name="edit" /></button>
                             <button type="button" class="mwt-icon-button" title="Center" aria-label="Center" @onclick="() => FocusAsync(person.Id)"><Icon Name="center" /></button>
-                            <button type="button" class="mwt-icon-button mwt-danger" title="Delete" aria-label="Delete" @onclick="() => confirmDelete = true"><Icon Name="trash" /></button>
+                            <button type="button" class="mwt-icon-button mwt-danger" title="Delete" aria-label="Delete" @onclick="AskDelete"><Icon Name="trash" /></button>
                         }
                         else
                         {
@@ -137,19 +137,22 @@
                     @if (Editable)
                     {
                         <div class="mwt-rel-list">
-                            @foreach (var spouseId in person.Spouses)
+                            @foreach (var (label, otherId) in Relatives(person))
                             {
                                 <div class="mwt-rel">
-                                    <span>Spouse · @Person(spouseId)?.DisplayName</span>
-                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, spouseId)">Unlink</button>
+                                    <span>@label · @Person(otherId)?.DisplayName</span>
+                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => AskUnlink(otherId)">Unlink</button>
                                 </div>
-                            }
-                            @foreach (var parentId in person.Parents)
-                            {
-                                <div class="mwt-rel">
-                                    <span>Parent · @Person(parentId)?.DisplayName</span>
-                                    <button type="button" class="mwt-button" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, parentId)">Unlink</button>
-                                </div>
+                                @if (unlinkOtherId == otherId)
+                                {
+                                    <div class="mwt-confirm">
+                                        <p>Unlink @person.DisplayName and @Person(otherId)?.DisplayName? Both stay in the tree.</p>
+                                        <div class="mwt-form-actions">
+                                            <button type="button" class="mwt-button mwt-danger" disabled="@saving" @onclick="() => UnlinkAsync(person.Id, otherId)">Unlink</button>
+                                            <button type="button" class="mwt-button" @onclick="() => unlinkOtherId = null">Keep</button>
+                                        </div>
+                                    </div>
+                                }
                             }
                         </div>
                         <div class="mwt-add">
@@ -161,6 +164,35 @@
                                 <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Son))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Male)">Son</button>
                                 <button type="button" class="mwt-button" disabled="@(!CanAdd(RelativeKind.Daughter))" @onclick="() => OpenAdd(PlaceholderKind.Child, person.Id, Gender.Female)">Daughter</button>
                             </div>
+                        </div>
+                        <div class="mwt-add">
+                            <p class="mwt-kicker">Link</p>
+                            <div class="mwt-add-row">
+                                <button type="button" class="mwt-button @(pendingLink == LinkKind.Parent ? "mwt-pressed" : null)" title="@LinkButtonTitle(LinkKind.Parent)" aria-pressed="@(pendingLink == LinkKind.Parent)" disabled="@(!CanLink(LinkKind.Parent) && pendingLink != LinkKind.Parent)" @onclick="() => BeginLink(LinkKind.Parent)">Parent</button>
+                                <button type="button" class="mwt-button @(pendingLink == LinkKind.Spouse ? "mwt-pressed" : null)" title="@LinkButtonTitle(LinkKind.Spouse)" aria-pressed="@(pendingLink == LinkKind.Spouse)" disabled="@(!CanLink(LinkKind.Spouse) && pendingLink != LinkKind.Spouse)" @onclick="() => BeginLink(LinkKind.Spouse)">Spouse</button>
+                                <button type="button" class="mwt-button @(pendingLink == LinkKind.Child ? "mwt-pressed" : null)" title="@LinkButtonTitle(LinkKind.Child)" aria-pressed="@(pendingLink == LinkKind.Child)" disabled="@(!CanLink(LinkKind.Child) && pendingLink != LinkKind.Child)" @onclick="() => BeginLink(LinkKind.Child)">Child</button>
+                            </div>
+                            @if (pendingLink is not null)
+                            {
+                                <p class="mwt-meta mwt-link-hint" role="status">@LinkPrompt</p>
+                                @if (confirmLink)
+                                {
+                                    <div class="mwt-confirm">
+                                        <p>@LinkConfirmText</p>
+                                        <div class="mwt-form-actions">
+                                            <button type="button" class="mwt-button mwt-primary" disabled="@saving" @onclick="ConfirmLinkAsync">Link</button>
+                                            <button type="button" class="mwt-button" @onclick="CancelLinkTarget">Choose another</button>
+                                            <button type="button" class="mwt-button" @onclick="CancelLink">Cancel</button>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mwt-form-actions">
+                                        <button type="button" class="mwt-button" @onclick="CancelLink">Cancel</button>
+                                    </div>
+                                }
+                            }
                         </div>
                     }
                 }
@@ -266,6 +298,10 @@
             @if (People.Count > 0)
             {
                 <div class="mwt-zoom">@ZoomPercent%</div>
+            }
+            @if (pendingLink is not null)
+            {
+                <div class="mwt-link-bar" role="status">@LinkBar</div>
             }
         </div>
     </div>

@@ -61,6 +61,19 @@ public enum RelativeKind
     Child,
 }
 
+/// <summary>How an existing person relates to the one already selected.</summary>
+public enum LinkKind
+{
+    /// <summary>The other person is a parent of the selected person.</summary>
+    Parent,
+
+    /// <summary>The other person is a spouse of the selected person.</summary>
+    Spouse,
+
+    /// <summary>The other person is a child of the selected person.</summary>
+    Child,
+}
+
 /// <summary>A dashed card the layout inserts so a missing relative can be added in place.</summary>
 public enum PlaceholderKind
 {

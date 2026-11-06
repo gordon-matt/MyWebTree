@@ -146,7 +146,38 @@ public static class FamilyGraphEditor
         return Result<IReadOnlyList<PersonData>>.Success(List(map));
     }
 
-    /// <summary>Drops one spouse or parent link and leaves both people in the tree.</summary>
+    /// <summary>
+    /// Links two people already in the tree. <paramref name="kind"/> is how <paramref name="otherId"/>
+    /// relates to <paramref name="personId"/>. A second parent is also recorded as the spouse of the parent
+    /// already there. The selected person's own spouse is not added as the other parent.
+    /// </summary>
+    public static Result<IReadOnlyList<PersonData>> Link(
+        IReadOnlyList<PersonData> people,
+        string personId,
+        string otherId,
+        LinkKind kind)
+    {
+        if (string.Equals(personId, otherId, StringComparison.Ordinal))
+        {
+            return Invalid("A person can't be linked to themself.");
+        }
+
+        var map = Index(people);
+        if (!map.ContainsKey(personId) || !map.ContainsKey(otherId))
+        {
+            return Result<IReadOnlyList<PersonData>>.NotFound("That person is no longer in the tree.");
+        }
+
+        return kind switch
+        {
+            LinkKind.Parent => LinkParent(map, map[personId], map[otherId]),
+            LinkKind.Child => LinkParent(map, map[otherId], map[personId]),
+            LinkKind.Spouse => LinkSpouse(map, map[personId], map[otherId]),
+            _ => Invalid("Choose which link to make."),
+        };
+    }
+
+    /// <summary>Drops one spouse, parent, or child link and leaves both people in the tree.</summary>
     public static Result<IReadOnlyList<PersonData>> Unlink(IReadOnlyList<PersonData> people, string personId, string otherId)
     {
         var map = Index(people);
@@ -206,6 +237,12 @@ public static class FamilyGraphEditor
                 {
                     return Invalid("Parent and child links have to point both ways.");
                 }
+
+                string? dated = ParentageProblem(parent, person);
+                if (dated is not null)
+                {
+                    return Invalid(dated);
+                }
             }
 
             foreach (string spouseId in person.Spouses)
@@ -215,7 +252,7 @@ public static class FamilyGraphEditor
                     return Invalid("A marriage has to be recorded for both people.");
                 }
 
-                if (person.Parents.Contains(spouseId) || person.Children.Contains(spouseId))
+                if (IsAncestor(map, person.Id, spouseId) || IsAncestor(map, spouseId, person.Id))
                 {
                     return Invalid(person.DisplayName + " can't be both married to and descended from the same person.");
                 }
@@ -234,6 +271,87 @@ public static class FamilyGraphEditor
 
         return Result<IReadOnlyList<PersonData>>.Success(people);
     }
+
+    private static Result<IReadOnlyList<PersonData>> LinkSpouse(
+        Dictionary<string, PersonData> map,
+        PersonData person,
+        PersonData other)
+    {
+        if (person.Spouses.Contains(other.Id))
+        {
+            return Result<IReadOnlyList<PersonData>>.Conflict("Those two are already spouses.");
+        }
+
+        FamilyLinks.Spouse(map, person.Id, other.Id);
+        string? marriage = MarriageProblem(person, other);
+        return marriage is null ? Validate(List(map)) : Invalid(marriage);
+    }
+
+    private static Result<IReadOnlyList<PersonData>> LinkParent(
+        Dictionary<string, PersonData> map,
+        PersonData child,
+        PersonData parent)
+    {
+        if (child.Parents.Contains(parent.Id))
+        {
+            return Result<IReadOnlyList<PersonData>>.Conflict("Those two are already parent and child.");
+        }
+
+        if (child.Parents.Count >= 2)
+        {
+            return Invalid(child.DisplayName + " already has two parents.");
+        }
+
+        FamilyLinks.Parent(map, parent.Id, child.Id);
+
+        string? otherParentId = map[child.Id].Parents.FirstOrDefault(id => id != parent.Id);
+        if (otherParentId is not null && map.TryGetValue(otherParentId, out var otherParent))
+        {
+            string? marriage = MarriageProblem(parent, otherParent);
+            if (marriage is not null)
+            {
+                return Invalid(marriage);
+            }
+
+            FamilyLinks.Spouse(map, parent.Id, otherParentId);
+        }
+
+        return Validate(List(map));
+    }
+
+    private static string? ParentageProblem(PersonData parent, PersonData child)
+    {
+        if (parent.BirthDate is PartialDate parentBorn
+            && child.BirthDate is PartialDate childBorn
+            && childBorn.IsBefore(parentBorn))
+        {
+            return child.DisplayName + " was born before " + parent.DisplayName + ".";
+        }
+
+        return null;
+    }
+
+    private static string? MarriageProblem(PersonData left, PersonData right)
+    {
+        if (left.DeathDate is PartialDate leftDied
+            && right.BirthDate is PartialDate rightBorn
+            && leftDied.IsBefore(rightBorn))
+        {
+            return left.DisplayName + " died before " + right.DisplayName + " was born.";
+        }
+
+        if (right.DeathDate is PartialDate rightDied
+            && left.BirthDate is PartialDate leftBorn
+            && rightDied.IsBefore(leftBorn))
+        {
+            return right.DisplayName + " died before " + left.DisplayName + " was born.";
+        }
+
+        return null;
+    }
+
+    private static bool IsAncestor(Dictionary<string, PersonData> map, string start, string target) =>
+        IsOwnAncestor(map, start, target, 0);
 
     private static Result AddParent(Dictionary<string, PersonData> map, PersonData anchor, PersonData created, RelativeKind kind)
     {
