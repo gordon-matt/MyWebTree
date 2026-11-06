@@ -254,7 +254,7 @@ var kim = new PersonData
 };
 ```
 
-**Compatibility.** A host that only fills `Parents` and `Children` works exactly as before. The list is read as one primary birth set, nothing new is drawn, and `Changed` carries the same kinds. `Parents` is always the members of the primary set, and `Children` always lists a child once for every set they are in. The component and `FamilyGraphEditor` return people in this normalized shape, with `ParentSets` filled in.
+**Compatibility.** A host that only fills `Parents` and `Children` works exactly as before. The list is read as one primary birth set, nothing new is drawn, and `Changed` carries the same kinds. `Parents` is always the members of the primary set, and `Children` lists each child once, however many of that child's sets the person is in. The component and `FamilyGraphEditor` return people in this normalized shape, with `ParentSets` filled in.
 
 **Which set is primary.** A set flagged `IsPrimary` wins. When none is, the primary set is the first adopted set, then the first birth set, then the first foster set, in the order they are listed. Changing the primary set changes which parents `Parents` reports. Nothing else is deleted.
 
