@@ -142,7 +142,7 @@ namespace MyWebTree.Data.MySql.Migrations
                         .IsUnicode(true)
                         .HasColumnType("varchar(200)");
 
-                    b.Property<string>("FirstName")
+                    b.Property<string>("FamilyName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
@@ -151,11 +151,16 @@ namespace MyWebTree.Data.MySql.Migrations
                     b.Property<int>("Gender")
                         .HasColumnType("int");
 
-                    b.Property<string>("LastName")
+                    b.Property<string>("GivenNames")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
                         .HasColumnType("varchar(200)");
+
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)

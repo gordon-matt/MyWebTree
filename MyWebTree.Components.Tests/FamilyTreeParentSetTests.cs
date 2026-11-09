@@ -284,7 +284,7 @@ public sealed class FamilyTreeParentSetTests : BunitContext
 
         var change = Assert.Single(changes);
         Assert.Equal(FamilyTreeChangeKind.Added, change.Kind);
-        var ned = change.People.Single(person => person.FirstName == "Ned");
+        var ned = change.People.Single(person => person.GivenNames == "Ned");
         var kim = Person(change.People, Kim);
         Assert.Equal(3, kim.ParentSets.Count);
         var added = kim.ParentSets.Single(set => set.ParentIds.Contains(ned.Id));
@@ -402,8 +402,8 @@ public sealed class FamilyTreeParentSetTests : BunitContext
         string[]? children = null) => new()
         {
             Id = id,
-            FirstName = first,
-            LastName = last,
+            GivenNames = first,
+            FamilyName = last,
             Gender = gender,
             BirthDate = new PartialDate(born),
             Parents = parents ?? [],

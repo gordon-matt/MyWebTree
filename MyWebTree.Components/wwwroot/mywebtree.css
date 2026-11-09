@@ -302,6 +302,9 @@
 
 .mwt-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .mwt-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 650; color: var(--mwt-muted); }
+.mwt-form label.mwt-checkline { flex-direction: row; align-items: center; align-self: stretch; width: auto; gap: 8px; color: var(--mwt-text); font-weight: 550; }
+.mwt-form label.mwt-checkline input { width: 16px; height: 16px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; flex: none; }
+.mwt-form label.mwt-checkline span { flex: 1; min-width: 0; }
 .mwt-form input,
 .mwt-form select,
 .mwt-form textarea {

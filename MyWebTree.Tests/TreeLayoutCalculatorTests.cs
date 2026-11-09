@@ -137,27 +137,27 @@ public class TreeLayoutCalculatorTests
     [
         new()
         {
-            Id = "child", Gender = Gender.Male, FirstName = "Child", LastName = "Family",
+            Id = "child", Gender = Gender.Male, GivenNames = "Child", FamilyName = "Family",
             Parents = ["father", "mother"],
         },
         new()
         {
-            Id = "father", Gender = Gender.Male, FirstName = "Father", LastName = "Family",
+            Id = "father", Gender = Gender.Male, GivenNames = "Father", FamilyName = "Family",
             Parents = ["paternal-grandfather"], Spouses = ["mother"], Children = ["child"],
         },
         new()
         {
-            Id = "mother", Gender = Gender.Female, FirstName = "Mother", LastName = "Family",
+            Id = "mother", Gender = Gender.Female, GivenNames = "Mother", FamilyName = "Family",
             Parents = ["maternal-grandmother"], Spouses = ["father"], Children = ["child"],
         },
         new()
         {
-            Id = "paternal-grandfather", Gender = Gender.Male, FirstName = "Paternal", LastName = "Family",
+            Id = "paternal-grandfather", Gender = Gender.Male, GivenNames = "Paternal", FamilyName = "Family",
             Children = ["father"],
         },
         new()
         {
-            Id = "maternal-grandmother", Gender = Gender.Female, FirstName = "Maternal", LastName = "Family",
+            Id = "maternal-grandmother", Gender = Gender.Female, GivenNames = "Maternal", FamilyName = "Family",
             Children = ["mother"],
         },
     ];
@@ -207,7 +207,7 @@ public class TreeLayoutCalculatorTests
         {
             Id = id,
             Gender = gender,
-            FirstName = id,
+            GivenNames = id,
             Parents = [.. parents],
             Spouses = [.. spouses],
             Children = [.. children],

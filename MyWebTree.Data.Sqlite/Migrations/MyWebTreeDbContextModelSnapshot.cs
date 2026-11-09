@@ -140,7 +140,7 @@ namespace MyWebTree.Data.Sqlite.Migrations
                         .IsUnicode(true)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FirstName")
+                    b.Property<string>("FamilyName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
@@ -149,11 +149,16 @@ namespace MyWebTree.Data.Sqlite.Migrations
                     b.Property<int>("Gender")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("LastName")
+                    b.Property<string>("GivenNames")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)

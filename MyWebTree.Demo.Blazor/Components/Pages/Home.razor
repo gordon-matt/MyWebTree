@@ -28,6 +28,10 @@
                 <option value="dark">Dark</option>
             </select>
         </label>
+        <label>
+            <input type="checkbox" @bind="capitalizeFamilyNames" />
+            Capitalize Family Names
+        </label>
         <button type="button" @onclick="CreateEmptyAsync">New tree</button>
         <button type="button" @onclick="() => confirmReset = true">Reset demo</button>
     </div>
@@ -56,6 +60,7 @@ else
     <FamilyTree People="detail.People"
                 FocusPersonId="@detail.FocusPersonId"
                 Theme="@theme"
+                CapitalizeFamilyNames="@capitalizeFamilyNames"
                 Class="demo-tree"
                 ActiveParentSets="@ActiveSets"
                 ActiveParentSetsChanged="OnActiveSetsChanged"
@@ -66,6 +71,7 @@ else
     private readonly List<FamilyTreeSummary> summaries = [];
     private FamilyTreeDetail? detail;
     private string theme = "auto";
+    private bool capitalizeFamilyNames;
     private string? error;
     private bool confirmReset;
     private bool resetting;

@@ -17,14 +17,19 @@ public sealed record PersonData
     public Gender Gender { get; init; }
 
     /// <summary>
-    /// Gets or sets the first name.
+    /// Gets or sets the given names.
     /// </summary>
-    public string FirstName { get; init; } = string.Empty;
+    public string GivenNames { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the last name.
+    /// Gets or sets the family name.
     /// </summary>
-    public string LastName { get; init; } = string.Empty;
+    public string FamilyName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// When set, <see cref="DisplayName"/> puts the family name before the given names.
+    /// </summary>
+    public bool IsFamilyNameFirst { get; init; }
 
     /// <summary>
     /// Gets or sets the birth date.
@@ -93,32 +98,37 @@ public sealed record PersonData
     public IReadOnlyList<string> Children { get; init; } = [];
 
     /// <summary>
-    /// Gets the display name.
+    /// The name in this person's order, without capitalizing the family name. A host that capitalizes
+    /// passes the setting to <see cref="FormatName"/>.
     /// </summary>
-    public string DisplayName
+    public string DisplayName => FormatName(capitalizeFamilyName: false);
+
+    /// <summary>
+    /// The name as shown, with the family name capitalized only when <paramref name="capitalizeFamilyName"/> is set.
+    /// </summary>
+    public string FormatName(bool capitalizeFamilyName)
     {
-        get
-        {
-            string name = $"{FirstName} {LastName}".Trim();
-            return name.Length == 0 ? "Unnamed" : name;
-        }
+        string name = PersonName.Format(GivenNames, FamilyName, IsFamilyNameFirst, capitalizeFamilyName);
+        return name.Length == 0 ? "Unnamed" : name;
     }
 
     /// <summary>
-    /// Gets the initials.
+    /// Gets the initials, in the same order as <see cref="DisplayName"/>.
     /// </summary>
     public string Initials
     {
         get
         {
-            char first = FirstName.FirstOrDefault(char.IsLetter);
-            char last = LastName.FirstOrDefault(char.IsLetter);
-            if (first == '\0' && last == '\0')
+            string leading = IsFamilyNameFirst ? FamilyName : GivenNames;
+            string trailing = IsFamilyNameFirst ? GivenNames : FamilyName;
+            char first = leading.FirstOrDefault(char.IsLetter);
+            char second = trailing.FirstOrDefault(char.IsLetter);
+            if (first == '\0' && second == '\0')
             {
                 return "?";
             }
 
-            return $"{CharOrEmpty(first)}{CharOrEmpty(last)}".ToUpperInvariant();
+            return $"{CharOrEmpty(first)}{CharOrEmpty(second)}".ToUpperInvariant();
         }
     }
 

@@ -116,8 +116,9 @@ public static class FamilyGraphEditor
         map[personId] = existing with
         {
             Gender = value.Gender,
-            FirstName = value.FirstName,
-            LastName = value.LastName,
+            GivenNames = value.GivenNames,
+            FamilyName = value.FamilyName,
+            IsFamilyNameFirst = value.IsFamilyNameFirst,
             BirthDate = value.BirthDate,
             DeathDate = value.DeathDate,
             BirthPlace = value.BirthPlace,
@@ -805,17 +806,17 @@ public static class FamilyGraphEditor
 
     private static Result<PersonWriteModel> Clean(PersonWriteModel model, Gender? gender = null)
     {
-        string first = model.FirstName.Trim();
-        string last = model.LastName.Trim();
+        string first = model.GivenNames.Trim();
+        string last = model.FamilyName.Trim();
         if (first.Length == 0 && last.Length == 0)
         {
-            return Result<PersonWriteModel>.Invalid(new ValidationError(nameof(model.FirstName), "Give this person a name."));
+            return Result<PersonWriteModel>.Invalid(new ValidationError(nameof(model.GivenNames), "Give this person a name."));
         }
 
         if (first.Length > Constants.MaxLengths.PersonName || last.Length > Constants.MaxLengths.PersonName)
         {
             return Result<PersonWriteModel>.Invalid(new ValidationError(
-                nameof(model.FirstName),
+                nameof(model.GivenNames),
                 $"Names can be at most {Constants.MaxLengths.PersonName} characters."));
         }
 
@@ -851,8 +852,8 @@ public static class FamilyGraphEditor
         return Result<PersonWriteModel>.Success(model with
         {
             Gender = gender ?? model.Gender,
-            FirstName = first,
-            LastName = last,
+            GivenNames = first,
+            FamilyName = last,
             BirthPlace = place,
             DeathPlace = deathPlace,
             AvatarUrl = avatar,
@@ -864,8 +865,9 @@ public static class FamilyGraphEditor
     {
         Id = id,
         Gender = model.Gender,
-        FirstName = model.FirstName,
-        LastName = model.LastName,
+        GivenNames = model.GivenNames,
+        FamilyName = model.FamilyName,
+        IsFamilyNameFirst = model.IsFamilyNameFirst,
         BirthDate = model.BirthDate,
         DeathDate = model.DeathDate,
         BirthPlace = model.BirthPlace,

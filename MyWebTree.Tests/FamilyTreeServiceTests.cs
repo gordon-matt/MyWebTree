@@ -20,26 +20,26 @@ public class FamilyTreeServiceTests
         var created = await database.Trees.CreateSampleAsync(TestContext.Current.CancellationToken);
 
         Assert.True(created.IsSuccess);
-        var david = created.Value.People.Single(person => person.FirstName == "David");
+        var david = created.Value.People.Single(person => person.GivenNames == "David");
         Assert.Equal(2, david.Parents.Count);
-        Assert.Contains(created.Value.People, person => person.FirstName == "Priya" && person.Spouses.Contains(david.Id));
+        Assert.Contains(created.Value.People, person => person.GivenNames == "Priya" && person.Spouses.Contains(david.Id));
 
         var withSon = FamilyGraphEditor.AddRelative(created.Value.People, new AddRelativeRequest
         {
             RelatesToPersonId = david.Id,
             Kind = RelativeKind.Son,
-            Person = new PersonWriteModel { FirstName = "Jonah", LastName = "Ward" },
+            Person = new PersonWriteModel { GivenNames = "Jonah", FamilyName = "Ward" },
         });
         var saved = await database.Trees.SaveAsync(created.Value.Id, withSon.Value, david.Id, TestContext.Current.CancellationToken);
 
         Assert.True(saved.IsSuccess);
-        var again = saved.Value.People.Single(person => person.FirstName == "David");
-        var jonah = saved.Value.People.Single(person => person.FirstName == "Jonah");
+        var again = saved.Value.People.Single(person => person.GivenNames == "David");
+        var jonah = saved.Value.People.Single(person => person.GivenNames == "Jonah");
         Assert.Contains(jonah.Id, again.Children);
         Assert.Contains(again.Id, jonah.Parents);
         Assert.Equal(again.Id, saved.Value.FocusPersonId);
         Assert.Equal(new PartialDate(1953), again.BirthDate);
-        var arthur = saved.Value.People.Single(person => person.FirstName == "Arthur");
+        var arthur = saved.Value.People.Single(person => person.GivenNames == "Arthur");
         Assert.Equal(new PartialDate(1924), arthur.BirthDate);
         Assert.Equal(new PartialDate(2001), arthur.DeathDate);
 

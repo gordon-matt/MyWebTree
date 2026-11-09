@@ -56,7 +56,7 @@ public sealed class FamilyTreeService(
         var members = (await people.FindAsync(new SearchOptions<Person>
         {
             Query = person => person.TreeId == treeId,
-            OrderBy = query => query.OrderBy(person => person.BirthDate).ThenBy(person => person.LastName).ThenBy(person => person.FirstName),
+            OrderBy = query => query.OrderBy(person => person.BirthDate).ThenBy(person => person.FamilyName).ThenBy(person => person.GivenNames),
             CancellationToken = cancellationToken,
         })).ToList();
 
@@ -501,8 +501,9 @@ public sealed class FamilyTreeService(
         {
             Id = person.Id.ToString(),
             Gender = person.Gender,
-            FirstName = person.FirstName,
-            LastName = person.LastName,
+            GivenNames = person.GivenNames,
+            FamilyName = person.FamilyName,
+            IsFamilyNameFirst = person.IsFamilyNameFirst,
             BirthDate = person.BirthDate,
             DeathDate = person.DeathDate,
             BirthPlace = person.BirthPlace,
@@ -534,8 +535,9 @@ public sealed class FamilyTreeService(
     private static void Apply(PersonData person, Person entity)
     {
         entity.Gender = person.Gender;
-        entity.FirstName = person.FirstName;
-        entity.LastName = person.LastName;
+        entity.GivenNames = person.GivenNames;
+        entity.FamilyName = person.FamilyName;
+        entity.IsFamilyNameFirst = person.IsFamilyNameFirst;
         entity.BirthDate = person.BirthDate;
         entity.DeathDate = person.DeathDate;
         entity.BirthPlace = person.BirthPlace;

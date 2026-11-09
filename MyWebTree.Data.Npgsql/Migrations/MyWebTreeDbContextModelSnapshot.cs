@@ -154,7 +154,7 @@ namespace MyWebTree.Data.Npgsql.Migrations
                         .IsUnicode(true)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("FirstName")
+                    b.Property<string>("FamilyName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
@@ -163,11 +163,16 @@ namespace MyWebTree.Data.Npgsql.Migrations
                     b.Property<int>("Gender")
                         .HasColumnType("integer");
 
-                    b.Property<string>("LastName")
+                    b.Property<string>("GivenNames")
                         .IsRequired()
                         .HasMaxLength(200)
                         .IsUnicode(true)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsFamilyNameFirst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)

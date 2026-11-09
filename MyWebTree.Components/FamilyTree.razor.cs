@@ -102,6 +102,19 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     public bool Editable { get; set; } = true;
 
     /// <summary>
+    /// Uppercases the family name on cards and in the panel. The name stored on each person is unchanged,
+    /// and the editor still shows it as it was typed.
+    /// </summary>
+    [Parameter]
+    public bool CapitalizeFamilyNames { get; set; }
+
+    /// <summary>
+    /// Starting value of family-name-first for a person added in the editor. An existing person keeps their own value.
+    /// </summary>
+    [Parameter]
+    public bool DefaultFamilyNameFirst { get; set; }
+
+    /// <summary>
     /// Gets or sets the theme.
     /// </summary>
     [Parameter]
@@ -214,13 +227,16 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
     private PersonData? Selected => graph.FirstOrDefault(person => person.Id == selectedId);
 
+    /// <summary>The name on a card or in the panel. Null when there is no person.</summary>
+    private string? ShownName(PersonData? person) => person?.FormatName(CapitalizeFamilyNames);
+
     private List<PersonData> Matches => string.IsNullOrWhiteSpace(query)
         ? []
         : graph.Where(person =>
         {
             string term = query.Trim();
             return
-            person.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase)
+            PersonName.Matches(term, person.GivenNames, person.FamilyName)
             || (person.BirthPlace?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
             || (person.DeathPlace?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
             || person.Lifespan.Contains(term);
@@ -550,22 +566,22 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     {
         if (card.IsStub && person is not null && pendingLink is null)
         {
-            return person.DisplayName + " (" + TypeWord(card.ParentType).ToLowerInvariant() + " child here" + (card.SeeAlso ? ", also shown elsewhere" : "") + ")";
+            return ShownName(person) + " (" + TypeWord(card.ParentType).ToLowerInvariant() + " child here" + (card.SeeAlso ? ", also shown elsewhere" : "") + ")";
         }
 
         if (pendingLink is not null && !card.IsPlaceholder && RealId(card) != linkAnchorId && person is not null)
         {
-            string name = Anchor?.DisplayName ?? "the selected person";
+            string name = ShownName(Anchor) ?? "the selected person";
             return pendingLink switch
             {
                 LinkKind.Parent => "Parent of " + name,
                 LinkKind.Spouse => "Spouse of " + name,
                 LinkKind.Child => "Child of " + name,
-                _ => person.DisplayName,
+                _ => ShownName(person) ?? "Person",
             };
         }
 
-        return card.IsPlaceholder ? PlaceholderLabel(card.Placeholder) : person?.DisplayName ?? "Person";
+        return card.IsPlaceholder ? PlaceholderLabel(card.Placeholder) : ShownName(person) ?? "Person";
     }
 
     private static string PlaceholderLabel(PlaceholderKind? kind) => kind switch
@@ -620,7 +636,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     private Task FocusCardAsync(TreeCard card) =>
         pendingLink is not null || card.IsPlaceholder ? Task.CompletedTask : FocusAsync(RealId(card));
 
-    private void AddFirst() => editor = new EditorState();
+    private void AddFirst() => editor = new EditorState { IsFamilyNameFirst = DefaultFamilyNameFirst };
 
     private void EditSelected()
     {
@@ -657,6 +673,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         {
             Kind = relative,
             RelatesToId = relatesTo,
+            IsFamilyNameFirst = DefaultFamilyNameFirst,
             Gender = relative switch
             {
                 RelativeKind.Father or RelativeKind.Son => Gender.Male,
@@ -709,7 +726,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     {
         get
         {
-            string name = Anchor?.DisplayName ?? "the selected person";
+            string name = ShownName(Anchor) ?? "the selected person";
             return pendingLink switch
             {
                 LinkKind.Parent => "Click a parent of " + name + " in the tree, or search for them.",
@@ -724,8 +741,8 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     {
         get
         {
-            string anchor = Anchor?.DisplayName ?? "the selected person";
-            string other = LinkTarget?.DisplayName ?? "them";
+            string anchor = ShownName(Anchor) ?? "the selected person";
+            string other = ShownName(LinkTarget) ?? "them";
             string question = pendingLink switch
             {
                 LinkKind.Parent => "Make " + other + " a parent of " + anchor + "?",
@@ -757,13 +774,13 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             return null;
         }
 
-        string existingName = Person(existingId)?.DisplayName ?? "the other parent";
-        return "This also records " + parent.DisplayName + " and " + existingName + " as spouses.";
+        string existingName = ShownName(Person(existingId)) ?? "the other parent";
+        return "This also records " + ShownName(parent) + " and " + existingName + " as spouses.";
     }
 
     private string LinkBar =>
         confirmLink && LinkTarget is { } target
-            ? "Confirm the link to " + target.DisplayName + " in the side panel."
+            ? "Confirm the link to " + ShownName(target) + " in the side panel."
             : LinkPrompt;
 
     private void BeginLink(LinkKind kind)
@@ -879,7 +896,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     }
 
     private string SetNames(ParentSetData set) =>
-        string.Join(" & ", set.ParentIds.Select(id => Person(id)?.DisplayName).Where(name => name is not null));
+        string.Join(" & ", set.ParentIds.Select(id => ShownName(Person(id))).Where(name => name is not null));
 
     /// <summary>One line describing a family: type, who is in it, and the date when there is one.</summary>
     private string SetSummary(ParentSetData set) =>
@@ -1616,9 +1633,11 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
 
         public string? OtherParentId { get; set; }
 
-        public string FirstName { get; set; } = "";
+        public string GivenNames { get; set; } = "";
 
-        public string LastName { get; set; } = "";
+        public string FamilyName { get; set; } = "";
+
+        public bool IsFamilyNameFirst { get; set; }
 
         public Gender Gender { get; set; }
 
@@ -1654,8 +1673,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
             model = new PersonWriteModel
             {
                 Gender = Gender,
-                FirstName = FirstName,
-                LastName = LastName,
+                GivenNames = GivenNames,
+                FamilyName = FamilyName,
+                IsFamilyNameFirst = IsFamilyNameFirst,
                 BirthDate = birth,
                 DeathDate = death,
                 BirthPlace = BirthPlace,
@@ -1669,8 +1689,9 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
         public static EditorState From(PersonData person) => new()
         {
             PersonId = person.Id,
-            FirstName = person.FirstName,
-            LastName = person.LastName,
+            GivenNames = person.GivenNames,
+            FamilyName = person.FamilyName,
+            IsFamilyNameFirst = person.IsFamilyNameFirst,
             Gender = person.Gender,
             BirthYear = person.BirthDate?.Year,
             BirthMonth = person.BirthDate?.Month,

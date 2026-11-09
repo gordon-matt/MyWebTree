@@ -36,14 +36,19 @@ public sealed record PersonWriteModel
     public Gender Gender { get; init; }
 
     /// <summary>
-    /// Gets or sets the first name.
+    /// Gets or sets the given names.
     /// </summary>
-    public string FirstName { get; init; } = string.Empty;
+    public string GivenNames { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the last name.
+    /// Gets or sets the family name.
     /// </summary>
-    public string LastName { get; init; } = string.Empty;
+    public string FamilyName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// When set, the family name is shown before the given names.
+    /// </summary>
+    public bool IsFamilyNameFirst { get; init; }
 
     /// <summary>
     /// Gets or sets the birth date.

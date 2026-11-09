@@ -113,8 +113,8 @@ public static class SampleFamily
         {
             Id = id,
             Gender = gender,
-            FirstName = first,
-            LastName = last,
+            GivenNames = first,
+            FamilyName = last,
             BirthDate = birth is null ? null : new PartialDate(birth.Value),
             DeathDate = death is null ? null : new PartialDate(death.Value),
             BirthPlace = place,

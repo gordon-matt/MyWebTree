@@ -354,7 +354,7 @@ public class ParentSetEditorTests
         {
             RelatesToPersonId = "kid",
             Kind = RelativeKind.Father,
-            Person = new PersonWriteModel { FirstName = "Dad", LastName = "Test" },
+            Person = new PersonWriteModel { GivenNames = "Dad", FamilyName = "Test" },
         }));
 
         var set = Assert.Single(Find(result, "kid").ParentSets);
@@ -369,7 +369,7 @@ public class ParentSetEditorTests
         {
             RelatesToPersonId = ChildId,
             Kind = RelativeKind.Father,
-            Person = new PersonWriteModel { FirstName = "Foster", LastName = "Dad", BirthDate = new PartialDate(1955) },
+            Person = new PersonWriteModel { GivenNames = "Foster", FamilyName = "Dad", BirthDate = new PartialDate(1955) },
             ParentSet = new ParentSetTarget { CreateNew = true, Type = ParentageType.Foster },
         }));
 
@@ -391,7 +391,7 @@ public class ParentSetEditorTests
         {
             RelatesToPersonId = ChildId,
             Kind = RelativeKind.Mother,
-            Person = new PersonWriteModel { FirstName = "New", LastName = "Mum" },
+            Person = new PersonWriteModel { GivenNames = "New", FamilyName = "Mum" },
             ParentSet = new ParentSetTarget { ParentSetId = AdoptedSetId },
         }));
 
@@ -409,7 +409,7 @@ public class ParentSetEditorTests
         {
             RelatesToPersonId = ChildId,
             Kind = RelativeKind.Father,
-            Person = new PersonWriteModel { FirstName = "Extra", LastName = "Dad" },
+            Person = new PersonWriteModel { GivenNames = "Extra", FamilyName = "Dad" },
             ParentSet = new ParentSetTarget { ParentSetId = BirthSetId },
         });
         var people = Success(FamilyGraphEditor.Unlink(BirthAndAdopted(), ChildId, "amy", AdoptedSetId));
@@ -417,7 +417,7 @@ public class ParentSetEditorTests
         {
             RelatesToPersonId = ChildId,
             Kind = RelativeKind.Father,
-            Person = new PersonWriteModel { FirstName = "Extra", LastName = "Dad" },
+            Person = new PersonWriteModel { GivenNames = "Extra", FamilyName = "Dad" },
             ParentSet = new ParentSetTarget { ParentSetId = AdoptedSetId },
         });
 
@@ -476,7 +476,7 @@ public class ParentSetEditorTests
     {
         var people = SampleFamily.Create();
 
-        var result = Success(FamilyGraphEditor.Update(people, "david", new PersonWriteModel { FirstName = "David", LastName = "Ward", Gender = Gender.Male }));
+        var result = Success(FamilyGraphEditor.Update(people, "david", new PersonWriteModel { GivenNames = "David", FamilyName = "Ward", Gender = Gender.Male }));
 
         var david = Find(result, "david");
         var set = Assert.Single(david.ParentSets);

@@ -19,7 +19,7 @@ public class ParentSetPersistenceTests
         return saved.Value;
     }
 
-    private static PersonData Kim(FamilyTreeDetail tree) => tree.People.Single(person => person.FirstName == "Kim");
+    private static PersonData Kim(FamilyTreeDetail tree) => tree.People.Single(person => person.GivenNames == "Kim");
 
     [Fact]
     public async Task Birth_and_adopted_sets_round_trip_with_type_date_and_default_primary()
@@ -38,8 +38,8 @@ public class ParentSetPersistenceTests
         Assert.Equal(new PartialDate(1987), adopted.Date);
         Assert.Null(birth.Date);
         Assert.Equal(adopted.ParentIds, kim.Parents);
-        Assert.Equal(["Alan", "Amy"], adopted.ParentIds.Select(id => tree.People.Single(person => person.Id == id).FirstName));
-        Assert.Equal(["Bob", "Beth"], birth.ParentIds.Select(id => tree.People.Single(person => person.Id == id).FirstName));
+        Assert.Equal(["Alan", "Amy"], adopted.ParentIds.Select(id => tree.People.Single(person => person.Id == id).GivenNames));
+        Assert.Equal(["Bob", "Beth"], birth.ParentIds.Select(id => tree.People.Single(person => person.Id == id).GivenNames));
 
         // Every parent, in any set, lists Kim as a child.
         foreach (string parentId in adopted.ParentIds.Concat(birth.ParentIds))
@@ -67,7 +67,7 @@ public class ParentSetPersistenceTests
         var kim = Kim(tree);
         string birthId = kim.ParentSets.Single(set => set.Type == ParentageType.Birth).Id;
         string adoptedId = kim.ParentSets.Single(set => set.Type == ParentageType.Adopted).Id;
-        var amy = tree.People.Single(person => person.FirstName == "Amy");
+        var amy = tree.People.Single(person => person.GivenNames == "Amy");
 
         // Re-type the adoptive set as foster, make the birth set primary, and take Amy out of the set.
         var edited = FamilyGraphEditor.SetParentSetType(tree.People, kim.Id, adoptedId, ParentageType.Foster);
@@ -84,7 +84,7 @@ public class ParentSetPersistenceTests
         Assert.Equal([birthId, adoptedId], after.ParentSets.Select(set => set.Id).Order());
         var foster = after.ParentSets.Single(set => set.Id == adoptedId);
         Assert.Equal(ParentageType.Foster, foster.Type);
-        Assert.Equal(["Alan"], foster.ParentIds.Select(id => saved.Value.People.Single(person => person.Id == id).FirstName));
+        Assert.Equal(["Alan"], foster.ParentIds.Select(id => saved.Value.People.Single(person => person.Id == id).GivenNames));
         Assert.True(after.ParentSets.Single(set => set.Id == birthId).IsPrimary);
         Assert.DoesNotContain(after.Id, saved.Value.People.Single(person => person.Id == amy.Id).Children);
     }
@@ -96,7 +96,7 @@ public class ParentSetPersistenceTests
         var tree = await SaveAsync(database, BirthAndAdopted());
         var kim = Kim(tree);
         string adoptedId = kim.ParentSets.Single(set => set.Type == ParentageType.Adopted).Id;
-        var bob = tree.People.Single(person => person.FirstName == "Bob");
+        var bob = tree.People.Single(person => person.GivenNames == "Bob");
 
         var withoutSet = FamilyGraphEditor.RemoveParentSet(tree.People, kim.Id, adoptedId);
         Assert.True(withoutSet.IsSuccess);
@@ -110,8 +110,8 @@ public class ParentSetPersistenceTests
         var only = Assert.Single(after.ParentSets);
         Assert.Equal(ParentageType.Birth, only.Type);
         Assert.True(only.IsPrimary);
-        Assert.Equal(["Beth"], only.ParentIds.Select(id => saved.Value.People.Single(person => person.Id == id).FirstName));
-        Assert.DoesNotContain(saved.Value.People, person => person.FirstName == "Bob");
+        Assert.Equal(["Beth"], only.ParentIds.Select(id => saved.Value.People.Single(person => person.Id == id).GivenNames));
+        Assert.DoesNotContain(saved.Value.People, person => person.GivenNames == "Bob");
     }
 
     [Fact]
@@ -151,18 +151,18 @@ public class ParentSetPersistenceTests
         var detail = await database.Trees.GetAsync(1, Token);
         Assert.True(detail.IsSuccess);
 
-        var ann = detail.Value.People.Single(person => person.FirstName == "Ann");
+        var ann = detail.Value.People.Single(person => person.GivenNames == "Ann");
         var annSet = Assert.Single(ann.ParentSets);
         Assert.Equal(ParentageType.Birth, annSet.Type);
         Assert.True(annSet.IsPrimary);
-        Assert.Equal(["Mum", "Dad"], annSet.ParentIds.Select(id => detail.Value.People.Single(person => person.Id == id).FirstName));
+        Assert.Equal(["Mum", "Dad"], annSet.ParentIds.Select(id => detail.Value.People.Single(person => person.Id == id).GivenNames));
         Assert.Equal(annSet.ParentIds, ann.Parents);
 
-        var ben = detail.Value.People.Single(person => person.FirstName == "Ben");
-        Assert.Equal(["Mum"], Assert.Single(ben.ParentSets).ParentIds.Select(id => detail.Value.People.Single(person => person.Id == id).FirstName));
+        var ben = detail.Value.People.Single(person => person.GivenNames == "Ben");
+        Assert.Equal(["Mum"], Assert.Single(ben.ParentSets).ParentIds.Select(id => detail.Value.People.Single(person => person.Id == id).GivenNames));
 
         // The spouse link stays where it was; the parent links are gone from the old table.
-        var mum = detail.Value.People.Single(person => person.FirstName == "Mum");
+        var mum = detail.Value.People.Single(person => person.GivenNames == "Mum");
         Assert.Equal(["2"], mum.Spouses);
         Assert.Equal(["3", "4"], mum.Children.Order());
 

@@ -7,19 +7,19 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "helen", Gender = Gender.Female, FirstName = "Helen", LastName = "Ward", Children = ["david"] },
-            new() { Id = "david", Gender = Gender.Male, FirstName = "David", LastName = "Ward", Parents = ["helen"] },
+            new() { Id = "helen", Gender = Gender.Female, GivenNames = "Helen", FamilyName = "Ward", Children = ["david"] },
+            new() { Id = "david", Gender = Gender.Male, GivenNames = "David", FamilyName = "Ward", Parents = ["helen"] },
         ];
 
         var added = FamilyGraphEditor.AddRelative(people, new AddRelativeRequest
         {
             RelatesToPersonId = "david",
             Kind = RelativeKind.Father,
-            Person = new PersonWriteModel { FirstName = "Arthur", LastName = "Ward", Gender = Gender.Female },
+            Person = new PersonWriteModel { GivenNames = "Arthur", FamilyName = "Ward", Gender = Gender.Female },
         });
 
         Assert.True(added.IsSuccess);
-        var father = added.Value.Single(person => person.FirstName == "Arthur" && person.Id != "arthur");
+        var father = added.Value.Single(person => person.GivenNames == "Arthur" && person.Id != "arthur");
         var child = added.Value.Single(person => person.Id == "david");
         var mother = added.Value.Single(person => person.Id == "helen");
         Assert.Equal(Gender.Male, father.Gender);
@@ -36,7 +36,7 @@ public class FamilyGraphEditorTests
         {
             RelatesToPersonId = "david",
             Kind = RelativeKind.Father,
-            Person = new PersonWriteModel { FirstName = "Someone", LastName = "Else" },
+            Person = new PersonWriteModel { GivenNames = "Someone", FamilyName = "Else" },
         });
 
         Assert.False(result.IsSuccess);
@@ -63,8 +63,8 @@ public class FamilyGraphEditorTests
     {
         var result = FamilyGraphEditor.Update(SampleFamily.Create(), "david", new PersonWriteModel
         {
-            FirstName = "David",
-            LastName = "Ward",
+            GivenNames = "David",
+            FamilyName = "Ward",
             Gender = Gender.Male,
             BirthDate = new PartialDate(1953, 1, 1),
             DeathDate = new PartialDate(1950, 1, 1),
@@ -78,8 +78,8 @@ public class FamilyGraphEditorTests
     {
         var result = FamilyGraphEditor.Update(SampleFamily.Create(), "david", new PersonWriteModel
         {
-            FirstName = "David",
-            LastName = "Ward",
+            GivenNames = "David",
+            FamilyName = "Ward",
             Gender = Gender.Male,
             BirthDate = new PartialDate(1953, 6, 1),
             DeathDate = new PartialDate(1953),
@@ -108,9 +108,9 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", Gender = Gender.Female, FirstName = "Ada", Spouses = ["ben"] },
-            new() { Id = "ben", Gender = Gender.Male, FirstName = "Ben", Spouses = ["ada"] },
-            new() { Id = "cora", Gender = Gender.Female, FirstName = "Cora" },
+            new() { Id = "ada", Gender = Gender.Female, GivenNames = "Ada", Spouses = ["ben"] },
+            new() { Id = "ben", Gender = Gender.Male, GivenNames = "Ben", Spouses = ["ada"] },
+            new() { Id = "cora", Gender = Gender.Female, GivenNames = "Cora" },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "ada", "cora", LinkKind.Child);
@@ -129,9 +129,9 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "cora", Gender = Gender.Female, FirstName = "Cora", Parents = ["ada"] },
-            new() { Id = "ada", Gender = Gender.Female, FirstName = "Ada", Children = ["cora"] },
-            new() { Id = "ben", Gender = Gender.Male, FirstName = "Ben" },
+            new() { Id = "cora", Gender = Gender.Female, GivenNames = "Cora", Parents = ["ada"] },
+            new() { Id = "ada", Gender = Gender.Female, GivenNames = "Ada", Children = ["cora"] },
+            new() { Id = "ben", Gender = Gender.Male, GivenNames = "Ben" },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "cora", "ben", LinkKind.Parent);
@@ -151,8 +151,8 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", FirstName = "Ada", BirthDate = new PartialDate(1990) },
-            new() { Id = "cora", FirstName = "Cora", BirthDate = new PartialDate(1980) },
+            new() { Id = "ada", GivenNames = "Ada", BirthDate = new PartialDate(1990) },
+            new() { Id = "cora", GivenNames = "Cora", BirthDate = new PartialDate(1980) },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "ada", "cora", LinkKind.Child);
@@ -166,8 +166,8 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", FirstName = "Ada", BirthDate = new PartialDate(1980) },
-            new() { Id = "cora", FirstName = "Cora", BirthDate = new PartialDate(1980, 6, 1) },
+            new() { Id = "ada", GivenNames = "Ada", BirthDate = new PartialDate(1980) },
+            new() { Id = "cora", GivenNames = "Cora", BirthDate = new PartialDate(1980, 6, 1) },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "ada", "cora", LinkKind.Child);
@@ -189,9 +189,9 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "maya", Gender = Gender.Female, FirstName = "Maya", Parents = ["simon"] },
-            new() { Id = "simon", Gender = Gender.Male, FirstName = "Simon", Children = ["maya"] },
-            new() { Id = "noah", Gender = Gender.Male, FirstName = "Noah" },
+            new() { Id = "maya", Gender = Gender.Female, GivenNames = "Maya", Parents = ["simon"] },
+            new() { Id = "simon", Gender = Gender.Male, GivenNames = "Simon", Children = ["maya"] },
+            new() { Id = "noah", Gender = Gender.Male, GivenNames = "Noah" },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "maya", "noah", LinkKind.Parent);
@@ -227,8 +227,8 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", FirstName = "Ada", DeathDate = new PartialDate(1900) },
-            new() { Id = "ben", FirstName = "Ben", BirthDate = new PartialDate(1950) },
+            new() { Id = "ada", GivenNames = "Ada", DeathDate = new PartialDate(1900) },
+            new() { Id = "ben", GivenNames = "Ben", BirthDate = new PartialDate(1950) },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "ada", "ben", LinkKind.Spouse);
@@ -242,8 +242,8 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", FirstName = "Ada", Children = ["ben"] },
-            new() { Id = "ben", FirstName = "Ben", Parents = ["ada"] },
+            new() { Id = "ada", GivenNames = "Ada", Children = ["ben"] },
+            new() { Id = "ben", GivenNames = "Ben", Parents = ["ada"] },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "ada", "ben", LinkKind.Parent);
@@ -257,9 +257,9 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", FirstName = "Ada", Children = ["ben"] },
-            new() { Id = "ben", FirstName = "Ben", Parents = ["ada"], Children = ["cora"] },
-            new() { Id = "cora", FirstName = "Cora", Parents = ["ben"] },
+            new() { Id = "ada", GivenNames = "Ada", Children = ["ben"] },
+            new() { Id = "ben", GivenNames = "Ben", Parents = ["ada"], Children = ["cora"] },
+            new() { Id = "cora", GivenNames = "Cora", Parents = ["ben"] },
         ];
 
         var linked = FamilyGraphEditor.Link(people, "ada", "cora", LinkKind.Spouse);
@@ -282,14 +282,14 @@ public class FamilyGraphEditorTests
     {
         IReadOnlyList<PersonData> people =
         [
-            new() { Id = "ada", FirstName = "Ada", BirthDate = new PartialDate(1950) },
+            new() { Id = "ada", GivenNames = "Ada", BirthDate = new PartialDate(1950) },
         ];
 
         var added = FamilyGraphEditor.AddRelative(people, new AddRelativeRequest
         {
             RelatesToPersonId = "ada",
             Kind = RelativeKind.Child,
-            Person = new PersonWriteModel { FirstName = "Cora", BirthDate = new PartialDate(1900) },
+            Person = new PersonWriteModel { GivenNames = "Cora", BirthDate = new PartialDate(1900) },
         });
 
         Assert.False(added.IsSuccess);
@@ -301,8 +301,8 @@ public class FamilyGraphEditorTests
     {
         var result = FamilyGraphEditor.Update(SampleFamily.Create(), "david", new PersonWriteModel
         {
-            FirstName = "David",
-            LastName = "Ward",
+            GivenNames = "David",
+            FamilyName = "Ward",
             Gender = Gender.Male,
             BirthDate = new PartialDate(1920),
         });

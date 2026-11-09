@@ -49,8 +49,8 @@ internal static class ParentSetFixtures
         string[]? children = null) => new()
         {
             Id = id,
-            FirstName = first,
-            LastName = last,
+            GivenNames = first,
+            FamilyName = last,
             Gender = gender,
             BirthDate = new PartialDate(born),
             Parents = parents ?? [],
