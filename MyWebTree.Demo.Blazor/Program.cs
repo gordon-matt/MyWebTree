@@ -1,4 +1,6 @@
+using Heroicsoft.NetForge.WebAssets;
 using MyWebTree;
+using MyWebTree.Components;
 using MyWebTree.Data.MySql;
 using MyWebTree.Data.Npgsql;
 using MyWebTree.Data.Sql;
@@ -23,6 +25,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.MapStaticAssets();
+app.MapEmbeddedContent(typeof(FamilyTree).Assembly);
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();

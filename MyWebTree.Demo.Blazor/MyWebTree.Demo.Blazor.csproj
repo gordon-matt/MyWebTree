@@ -8,6 +8,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Heroicsoft.NetForge.WebAssets" Version="1.2.6" />
 		<ProjectReference Include="..\MyWebTree.Components\MyWebTree.Components.csproj" />
 		<ProjectReference Include="..\MyWebTree.Data.MySql\MyWebTree.Data.MySql.csproj" />
 		<ProjectReference Include="..\MyWebTree.Data.Npgsql\MyWebTree.Data.Npgsql.csproj" />

@@ -360,7 +360,7 @@ public partial class FamilyTree : ComponentBase, IAsyncDisposable
     {
         if (firstRender)
         {
-            module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/MyWebTree.Components/mywebtree.js");
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "/_content/MyWebTree.Components/mywebtree.js");
             self = DotNetObjectReference.Create(this);
             await module.InvokeVoidAsync("watch", viewport, self);
             await module.InvokeVoidAsync("bindWheel", viewport, self);
