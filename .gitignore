@@ -405,4 +405,3 @@ App_Data/
 *.db-wal
 
 appsettings.Development.local.json
-NuGet-Push.ps1

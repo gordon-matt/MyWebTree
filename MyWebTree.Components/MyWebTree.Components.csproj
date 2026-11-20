@@ -12,11 +12,11 @@
 
 	<ItemGroup>
 		<SupportedPlatform Include="browser" />
-		<PackageReference Include="Heroicsoft.NetForge.WebAssets" Version="1.2.6">
+		<PackageReference Include="Heroicsoft.NetForge.WebAssets">
 			<IncludeAssets>build</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.14" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" />
 	</ItemGroup>
 
 	<ItemGroup>
